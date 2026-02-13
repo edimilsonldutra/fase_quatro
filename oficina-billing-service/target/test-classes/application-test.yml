@@ -2,18 +2,23 @@ spring:
   application:
     name: billing-service-test
 
-  data:
-    mongodb:
-      database: billing_test
-      host: localhost
-      port: 27017
-
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: billing-service-test
       auto-offset-reset: earliest
       enable-auto-commit: false
+
+# DynamoDB - endpoint é injetado dinamicamente via Testcontainers
+aws:
+  dynamodb:
+    endpoint: ${DYNAMODB_ENDPOINT:}
+    table-prefix: test-
+  region: us-east-1
+  sqs:
+    queues:
+      os-events: os-events-queue
+      billing-events: billing-events-queue
 
 cloud:
   aws:
@@ -22,17 +27,10 @@ cloud:
     sqs:
       endpoint: http://localhost:4566
 
-aws:
-  sqs:
-    queues:
-      os-events: os-events-queue
-      billing-events: billing-events-queue
-
 logging:
   level:
     root: INFO
     br.com.grupo99: DEBUG
-    org.springframework.data.mongodb: DEBUG
     io.cucumber: DEBUG
 
 management:

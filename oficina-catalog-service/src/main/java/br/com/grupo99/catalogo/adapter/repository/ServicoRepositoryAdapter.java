@@ -8,62 +8,61 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Adapter que implementa ServicoRepository (domínio) usando Spring Data
- * MongoDB.
+ * Adapter que implementa ServicoRepository (domínio) usando DynamoDB.
  * 
  * ✅ CLEAN ARCHITECTURE:
  * - Implementa interface de domínio: ServicoRepository
- * - Delega para MongoRepository: ServicoMongoRepository
+ * - Delega para DynamoDB: DynamoDbServicoRepository
  * - Isolamento de framework em adapter layer
  * 
- * Migrado de JPA/PostgreSQL para MongoDB/DocumentDB
+ * Migrado de MongoDB/DocumentDB para DynamoDB
  */
 @Repository
 public class ServicoRepositoryAdapter implements ServicoRepository {
 
-    private final ServicoMongoRepository mongoRepository;
+    private final DynamoDbServicoRepository dynamoDbRepository;
 
-    public ServicoRepositoryAdapter(ServicoMongoRepository mongoRepository) {
-        this.mongoRepository = mongoRepository;
+    public ServicoRepositoryAdapter(DynamoDbServicoRepository dynamoDbRepository) {
+        this.dynamoDbRepository = dynamoDbRepository;
     }
 
     @Override
     public Servico save(Servico servico) {
-        return mongoRepository.save(servico);
+        return dynamoDbRepository.save(servico);
     }
 
     @Override
     public Optional<Servico> findById(String id) {
-        return mongoRepository.findById(id);
+        return dynamoDbRepository.findById(id);
     }
 
     @Override
     public List<Servico> findByAtivoTrue() {
-        return mongoRepository.findByAtivoTrue();
+        return dynamoDbRepository.findByAtivoTrue();
     }
 
     @Override
     public List<Servico> findByAtivoTrueOrderByNomeAsc() {
-        return mongoRepository.findByAtivoTrueOrderByNomeAsc();
+        return dynamoDbRepository.findByAtivoTrueOrderByNomeAsc();
     }
 
     @Override
     public List<Servico> findAll() {
-        return mongoRepository.findAll();
+        return dynamoDbRepository.findAll();
     }
 
     @Override
     public void deleteById(String id) {
-        mongoRepository.deleteById(id);
+        dynamoDbRepository.deleteById(id);
     }
 
     @Override
     public boolean existsById(String id) {
-        return mongoRepository.existsById(id);
+        return dynamoDbRepository.existsById(id);
     }
 
     @Override
     public List<Servico> findByCategoria(String categoria) {
-        return mongoRepository.findByCategoriasContainingAndAtivoTrue(categoria);
+        return dynamoDbRepository.findByCategoriasContainingAndAtivoTrue(categoria);
     }
 }

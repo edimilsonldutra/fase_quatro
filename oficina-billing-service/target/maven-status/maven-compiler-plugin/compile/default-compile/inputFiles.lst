@@ -1,7 +1,6 @@
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\controller\PagamentoController.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\model\StatusPagamento.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\adapter\OrcamentoRepositoryAdapter.java
-C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\repository\MongoOrcamentoRepository.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\repository\OrcamentoRepository.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\model\StatusOrcamento.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\config\KafkaMetricsConfig.java
@@ -20,9 +19,9 @@ C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\ofic
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\events\OrcamentoAprovadoEvent.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\application\mapper\OrcamentoMapper.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\model\TipoItem.java
-C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\repository\MongoPagamentoRepository.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\security\jwt\JwtAuthorizationFilter.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\events\OrcamentoProntoEvent.java
+C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\repository\DynamoDbOrcamentoRepository.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\controller\OrcamentoController.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\security\jwt\JwtRequestFilter.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\messaging\BillingEventPublisher.java
@@ -40,6 +39,7 @@ C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\ofic
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\application\mapper\PagamentoMapper.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\application\service\PagamentoApplicationService.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\events\PagamentoFalhouEvent.java
+C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\repository\DynamoDbPagamentoRepository.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\config\LocalStackSqsConfig.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\adapter\PagamentoRepositoryAdapter.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\persistence\entity\PagamentoEntity.java
@@ -48,3 +48,4 @@ C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\ofic
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\events\DiagnosticoConcluidoEvent.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\domain\repository\PagamentoRepository.java
 C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\config\OpenApiConfig.java
+C:\Users\Meu Computador\OneDrive\Área de Trabalho\FIAP\projeto\fase_quatro\oficina-billing-service\src\main\java\br\com\grupo99\billingservice\infrastructure\config\DynamoDbConfig.java

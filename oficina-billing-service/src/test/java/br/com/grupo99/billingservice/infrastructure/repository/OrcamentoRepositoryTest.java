@@ -4,18 +4,16 @@ import br.com.grupo99.billingservice.domain.model.*;
 import br.com.grupo99.billingservice.domain.repository.OrcamentoRepository;
 import br.com.grupo99.billingservice.infrastructure.persistence.adapter.OrcamentoEntityMapper;
 import br.com.grupo99.billingservice.infrastructure.persistence.adapter.OrcamentoRepositoryAdapter;
-import br.com.grupo99.billingservice.infrastructure.persistence.repository.MongoOrcamentoRepository;
+import br.com.grupo99.billingservice.infrastructure.persistence.repository.DynamoDbOrcamentoRepository;
+import br.com.grupo99.billingservice.infrastructure.config.DynamoDbConfig;
+import br.com.grupo99.billingservice.testconfig.DynamoDbTestContainer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.MongoDBContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,31 +22,22 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DataMongoTest
-@Testcontainers
-@Import({ OrcamentoRepositoryAdapter.class, OrcamentoEntityMapper.class })
-@DisplayName("OrcamentoRepository - Testes de Integração")
+@SpringBootTest
+@ActiveProfiles("test")
+@ContextConfiguration(initializers = DynamoDbTestContainer.Initializer.class)
+@DisplayName("OrcamentoRepository - Testes de Integração (DynamoDB)")
 class OrcamentoRepositoryTest {
-
-    @Container
-    static MongoDBContainer mongodb = new MongoDBContainer("mongo:7.0")
-            .withExposedPorts(27017);
-
-    @DynamicPropertySource
-    static void setProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.uri", mongodb::getReplicaSetUrl);
-    }
 
     @Autowired
     private OrcamentoRepository repository;
 
     @Autowired
-    private MongoOrcamentoRepository mongoRepository;
+    private DynamoDbOrcamentoRepository dynamoDbRepository;
 
     @BeforeEach
     void setUp() {
-        // Limpar dados antes de cada teste
-        mongoRepository.deleteAll();
+        // Limpar dados antes de cada teste para garantir isolamento
+        dynamoDbRepository.deleteAll();
     }
 
     @Test

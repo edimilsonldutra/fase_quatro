@@ -79,26 +79,11 @@ services:
       retries: 5
 
   # =========================================================================
-  # MongoDB - Banco de dados para Billing Service
+  # DynamoDB Local - Banco NoSQL para Billing e Catalog Services
+  # (Substituiu MongoDB - DynamoDB é Free Tier na AWS)
   # =========================================================================
-  mongodb:
-    image: mongo:7.0
-    container_name: oficina-mongodb
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: billing_db
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - oficina-network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # DynamoDB já está incluído no LocalStack acima (porta 4566)
+  # Tabelas são auto-criadas pela aplicação Java via DynamoDbConfig.java
 
   # =========================================================================
   # Adminer - Interface web para PostgreSQL
@@ -115,24 +100,6 @@ services:
     depends_on:
       - postgres
 
-  # =========================================================================
-  # Mongo Express - Interface web para MongoDB
-  # =========================================================================
-  mongo-express:
-    image: mongo-express:latest
-    container_name: oficina-mongo-express
-    ports:
-      - "8091:8081"
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
-      ME_CONFIG_MONGODB_URL: mongodb://admin:admin123@mongodb:27017/
-      ME_CONFIG_BASICAUTH: false
-    networks:
-      - oficina-network
-    depends_on:
-      - mongodb
-
 # =============================================================================
 # Volumes
 # =============================================================================
@@ -140,8 +107,6 @@ volumes:
   localstack_data:
     driver: local
   postgres_data:
-    driver: local
-  mongodb_data:
     driver: local
 
 # =============================================================================

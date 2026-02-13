@@ -49,15 +49,15 @@ O sistema de oficina mecânica é composto por uma arquitetura cloud-native base
          │                 │                 │                  │
          ▼                 ▼                 ▼                  ▼
 ┌─────────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  RDS PostgreSQL │ │   MongoDB    │ │RDS PostgreSQL│ │  Amazon SQS  │
+│  RDS PostgreSQL │ │   DynamoDB   │ │RDS PostgreSQL│ │ Apache Kafka │
 │   (OS Service)  │ │  (Billing)   │ │ (Execution)  │ │  Messaging   │
 └─────────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
                                                                │
                     ┌──────────────────────────────────────────┤
                     │                                          │
             ┌───────▼────────┐  ┌────────────────┐  ┌────────▼────────┐
-            │ os-events-queue│  │billing-events- │  │execution-events-│
-            │                │  │     queue      │  │     queue       │
+            │ os-events-topic│  │billing-events- │  │execution-events-│
+            │                │  │     topic      │  │     topic       │
             └────────────────┘  └────────────────┘  └─────────────────┘
 
                     ┌─────────────────────────────────┐
@@ -127,7 +127,7 @@ resources:
 |----------|-------|
 | **Namespace** | billing-service |
 | **Porta** | 8082 |
-| **Banco de Dados** | MongoDB / DocumentDB |
+| **Banco de Dados** | Amazon DynamoDB |
 | **Réplicas** | 2-10 (HPA) |
 | **Responsabilidade** | Orçamentos, pagamentos e histórico financeiro |
 
@@ -187,13 +187,13 @@ resources:
 | **VPC** | Subnets privadas |
 | **Tabelas Principais** | ordens_servico, historico_status, veiculos |
 
-#### 4.2 MongoDB (Billing Service)
+#### 4.2 DynamoDB (Billing Service)
 
 | Configuração | Valor |
-|--------------|-------|
-| **Engine** | MongoDB 7.x / DocumentDB |
+|--------------| ------|
+| **Engine** | Amazon DynamoDB |
 | **Storage** | 20 GB (expansível) |
-| **Collections** | orcamentos, pagamentos, historico_status |
+| **Tables** | orcamentos, pagamentos, historico_status |
 | **Flexibilidade** | Schema-less para dados variáveis |
 
 #### 4.3 RDS PostgreSQL (Execution Service)
@@ -207,19 +207,19 @@ resources:
 
 ### 5. Camada de Mensageria (Messaging Layer)
 
-#### Amazon SQS
+#### Apache Kafka
 
-| Fila | Produtor | Consumidor | Tipo de Evento |
-|------|----------|------------|----------------|
-| **os-events-queue** | OS Service | Billing, Execution | Mudanças de status da OS |
-| **billing-events-queue** | Billing Service | OS, Execution | Orçamentos aprovados/pagamentos |
-| **execution-events-queue** | Execution Service | OS, Billing | Tarefas concluídas |
+| Tópico | Produtor | Consumidor | Tipo de Evento |
+|--------|----------|------------|----------------|
+| **os-events-topic** | OS Service | Billing, Execution | Mudanças de status da OS |
+| **billing-events-topic** | Billing Service | OS, Execution | Orçamentos aprovados/pagamentos |
+| **execution-events-topic** | Execution Service | OS, Billing | Tarefas concluídas |
 
 **Características:**
-- Dead Letter Queue (DLQ) para mensagens com falha
-- Visibility Timeout: 30 segundos
-- Message Retention: 4 dias
-- Polling: Long Polling (20 segundos)
+- Dead Letter Topic (DLT) para mensagens com falha
+- Consumer Group isolation por microserviço
+- Message Retention: 7 dias
+- Partições: 3 por tópico
 
 ### 6. Camada de Observabilidade (Observability Layer)
 
@@ -236,7 +236,7 @@ resources:
 - Taxa de erro (4xx, 5xx)
 - Consumo de CPU e memória dos pods
 - Healthchecks e uptime
-- Tamanho das filas SQS
+- Lag dos consumer groups Kafka
 - Conexões de banco de dados
 - Distributed traces entre microserviços
 
@@ -247,8 +247,8 @@ resources:
 | **EKS Cluster** | Terraform | tech_challenge_k8s_infra |
 | **VPC e Networking** | Terraform | tech_challenge_k8s_infra |
 | **RDS PostgreSQL** | Terraform | tech_challenge_db_infra |
-| **MongoDB/DocumentDB** | Terraform | tech_challenge_db_infra |
-| **SQS Queues** | Terraform | tech_challenge_k8s_infra |
+| **DynamoDB** | Terraform | tech_challenge_db_infra |
+| **Kafka Topics** | Terraform | tech_challenge_k8s_infra |
 | **K8s Manifests** | YAML | tech_challenge_k8s_infra/microservices/* |
 | **Lambda Auth** | SAM | lambda-auth-service |
 | **New Relic** | Helm | tech_challenge_k8s_infra |
@@ -264,7 +264,7 @@ Cliente → API Gateway → ALB → Microserviço → Database → Response
 
 ### Fluxo Assíncrono (Event-Driven)
 ```
-Microserviço A → SQS Queue → Microserviço B (Consumer)
+Microserviço A → Kafka Topic → Microserviço B (Consumer)
 ```
 
 ### Fluxo de Autenticação
@@ -287,8 +287,8 @@ Todos os Componentes → New Relic APM/Infrastructure → Dashboards/Alerts
 | `oficina-billing-service` | Billing Service, Dockerfile, CI/CD pipeline |
 | `oficina-execution-service` | Execution Service, Dockerfile, CI/CD pipeline |
 | `lambda-auth-service` | Lambda Auth, API Gateway (SAM template) |
-| `tech_challenge_k8s_infra` | EKS, VPC, SQS, K8s manifests, New Relic Bundle |
-| `tech_challenge_db_infra` | RDS PostgreSQL (2x), MongoDB, VPC, Security Groups |
+| `tech_challenge_k8s_infra` | EKS, VPC, Kafka, K8s manifests, New Relic Bundle |
+| `tech_challenge_db_infra` | RDS PostgreSQL (2x), DynamoDB, VPC, Security Groups |
 
 ---
 
@@ -301,7 +301,7 @@ Cada microserviço possui seu próprio banco de dados isolado.
 Ponto único de entrada com roteamento e autenticação.
 
 ### Event-Driven Architecture
-Comunicação assíncrona via SQS para desacoplamento.
+Comunicação assíncrona via Apache Kafka para desacoplamento.
 
 ### Circuit Breaker
 Proteção contra falhas em cascata (via Resilience4j).

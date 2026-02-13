@@ -21,12 +21,12 @@ Esta documentação descreve a arquitetura completa do sistema de gestão de ofi
 
 | Repositório | Propósito | Tecnologias |
 |-------------|-----------|-------------|
-| **oficina-os-service** | Gerenciamento de Ordens de Serviço | Java 21, Spring Boot 3.3, PostgreSQL, SQS |
-| **oficina-billing-service** | Orçamentos e Pagamentos | Java 21, Spring Boot 3.3, MongoDB, SQS |
-| **oficina-execution-service** | Execução e Diagnósticos | Java 21, Spring Boot 3.3, PostgreSQL, SQS |
+| **oficina-os-service** | Gerenciamento de Ordens de Serviço | Java 21, Spring Boot 3.3, PostgreSQL, Kafka |
+| **oficina-billing-service** | Orçamentos e Pagamentos | Java 21, Spring Boot 3.3, DynamoDB, Kafka |
+| **oficina-execution-service** | Execução e Diagnósticos | Java 21, Spring Boot 3.3, PostgreSQL, Kafka |
 | **lambda-auth-service** | Autenticação serverless | Java 21, AWS Lambda, API Gateway, JWT |
 | **tech_challenge_k8s_infra** | Infraestrutura Kubernetes | Terraform, EKS 1.29, Helm, New Relic |
-| **tech_challenge_db_infra** | Bancos de dados gerenciados | Terraform, RDS PostgreSQL 16.3, DocumentDB |
+| **tech_challenge_db_infra** | Bancos de dados gerenciados | Terraform, RDS PostgreSQL 16.3, DynamoDB |
 
 ### Stack Tecnológica
 
@@ -34,8 +34,8 @@ Esta documentação descreve a arquitetura completa do sistema de gestão de ofi
 - **Container Orchestration**: Amazon EKS (Kubernetes 1.29)
 - **Databases**: 
   - Amazon RDS PostgreSQL 16.3 (OS Service, Execution Service)
-  - Amazon DocumentDB / MongoDB (Billing Service)
-- **Message Queue**: Amazon SQS
+  - Amazon DynamoDB (Billing Service)
+- **Message Broker**: Apache Kafka 3.7.2 (Saga) + Amazon SQS (auxiliares)
 - **Serverless**: AWS Lambda + API Gateway
 - **IaC**: Terraform
 - **CI/CD**: GitHub Actions
@@ -48,12 +48,12 @@ Esta documentação descreve a arquitetura completa do sistema de gestão de ofi
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │   OS Service    │────▶│ Billing Service │────▶│Execution Service│
-│  (PostgreSQL)   │     │   (MongoDB)     │     │  (PostgreSQL)   │
+│  (PostgreSQL)   │     │   (DynamoDB)    │     │  (PostgreSQL)   │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
         │                       │                        │
         └───────────────────────┴────────────────────────┘
                               │
-                        Amazon SQS
+                        Apache Kafka
                     (Event-Driven Communication)
 ```
 
@@ -62,15 +62,15 @@ Esta documentação descreve a arquitetura completa do sistema de gestão de ofi
 | Microserviço | Responsabilidade | Porta | Banco de Dados |
 |--------------|-----------------|-------|----------------|
 | **OS Service** | Gerenciar ciclo de vida das ordens de serviço | 8081 | PostgreSQL |
-| **Billing Service** | Criar orçamentos, processar pagamentos | 8082 | MongoDB |
+| **Billing Service** | Criar orçamentos, processar pagamentos | 8082 | DynamoDB |
 | **Execution Service** | Registrar diagnósticos, tarefas e uso de peças | 8083 | PostgreSQL |
 | **Lambda Auth** | Autenticar usuários via CPF e gerar JWT | - | PostgreSQL (compartilhado) |
 
 ### Comunicação entre Microserviços
 
 - **Síncrona**: REST APIs (quando necessário consulta imediata)
-- **Assíncrona**: Amazon SQS (para eventos e notificações)
-- **Filas SQS**:
+- **Assíncrona**: Apache Kafka (Saga) / Amazon SQS (auxiliares)
+- **Tópicos Kafka (Saga)**:
   - `os-events-queue` - Eventos de ordens de serviço
   - `billing-events-queue` - Eventos de orçamentos/pagamentos
   - `execution-events-queue` - Eventos de execução
@@ -79,7 +79,7 @@ Esta documentação descreve a arquitetura completa do sistema de gestão de ofi
 
 ### Saga Pattern (Event-Driven)
 Implementação completa do padrão Saga com 100% de conformidade:
-- **6 Serviços com Saga Completo**: Customer, People, HR, Billing, Execution, OS (AWS SQS FIFO)
+- **6 Serviços com Saga Completo**: Customer, People, HR, Billing, Execution, OS (Apache Kafka)
 - **3 Serviços com Saga Básico**: Maintenance, Notification, Operations (Spring Events)
 - **0 Serviços sem Saga**: Migração 100% concluída
 - **Testes**: 35/35 PASS ✅
@@ -93,14 +93,14 @@ Cada microserviço segue DDD com:
 - **Infrastructure**: Repositórios, configs, integrações
 
 ### Event-Driven Architecture
-- Eventos publicados em SQS quando há mudanças de estado
+- Eventos publicados em tópicos Kafka quando há mudanças de estado
 - Microserviços consomem eventos de forma assíncrona
 - Desacoplamento entre serviços
 
 ### Database per Service
 - Cada microserviço possui seu próprio banco de dados
 - OS Service e Execution Service: PostgreSQL
-- Billing Service: MongoDB (dados mais flexíveis)
+- Billing Service: DynamoDB (dados mais flexíveis)
 
 ## 🚀 CI/CD e Deploy
 
@@ -140,7 +140,7 @@ Todos os microserviços possuem New Relic Agent integrado:
 - Taxa de erro
 - Consumo de CPU/Memória
 - Conexões de banco de dados
-- Tamanho das filas SQS
+- Lag dos consumer groups Kafka
 
 ## 📖 Documentação de APIs
 

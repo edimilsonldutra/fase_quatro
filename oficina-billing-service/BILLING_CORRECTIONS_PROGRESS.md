@@ -19,7 +19,7 @@
 
 ### Phase 3: Domain Repositories ✅
 - ✅ Refatorado: [OrcamentoRepository.java](src/main/java/br/com/grupo99/billingservice/domain/repository/OrcamentoRepository.java)
-  - De: `@Repository extends MongoRepository<Orcamento, String>`
+  - De: `@Repository com DynamoDbEnhancedClient`
   - Para: Interface pura sem dependências externas
   - Métodos: `save()`, `findById()`, `findByOsId()`, `findByStatus()`, `existsByOsId()`, `deleteById()`
   - Todos parâmetros: String → UUID ✅
@@ -56,35 +56,35 @@
 
 ### Phase 5: Infrastructure Adapters ✅
 
-**MongoDB Entities:**
+**DynamoDB Entities:**
 - ✅ [OrcamentoEntity.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/entity/OrcamentoEntity.java)
-  - `@Document(collection = "orcamentos")`
+  - `@DynamoDbBean (table: orcamentos)`
   - Nested: `ItemOrcamentoEntity`, `HistoricoStatusEntity`
 
 - ✅ [PagamentoEntity.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/entity/PagamentoEntity.java)
-  - `@Document(collection = "pagamentos")`
+  - `@DynamoDbBean (table: pagamentos)`
 
 **Entity Mappers (Domain ↔ Entity):**
 - ✅ [OrcamentoEntityMapper.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/adapter/OrcamentoEntityMapper.java)
   - `toEntity()`: Domain → Entity (para persistência)
   - `toDomain()`: Entity → Domain (do banco)
-  - UUID ↔ String conversions para MongoDB
+  - UUID ↔ String conversions para DynamoDB
 
 - ✅ [PagamentoEntityMapper.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/adapter/PagamentoEntityMapper.java)
 
-**Spring Data MongoDB:**
-- ✅ [MongoOrcamentoRepository.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/repository/MongoOrcamentoRepository.java)
-  - `extends MongoRepository<OrcamentoEntity, String>`
+**AWS SDK DynamoDB Enhanced:**
+- ✅ [DynamoDbOrcamentoRepository.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/repository/DynamoDbOrcamentoRepository.java)
+  - `uses DynamoDbEnhancedClient`
   - Methods: `findByOsId()`, `findByStatus()`, `existsByOsId()`
 
-- ✅ [MongoPagamentoRepository.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/repository/MongoPagamentoRepository.java)
+- ✅ [DynamoDbPagamentoRepository.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/repository/DynamoDbPagamentoRepository.java)
 
 **ADAPTER PATTERN - Repository Adapters ⭐:**
 - ✅ [OrcamentoRepositoryAdapter.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/adapter/OrcamentoRepositoryAdapter.java)
   - **Implements**: `OrcamentoRepository` (domain interface)
-  - **Contains**: `MongoOrcamentoRepository` (Spring Data detail)
+  - **Contains**: `DynamoDbOrcamentoRepository` (AWS SDK detail)
   - **Decorator**: `OrcamentoEntityMapper` (conversion logic)
-  - Flow: Domain → Mapper → Entity → MongoDB → Entity → Mapper → Domain
+  - Flow: Domain → Mapper → Entity → DynamoDB → Entity → Mapper → Domain
   - Métodos: Todos 6 com conversão automática
 
 - ✅ [PagamentoRepositoryAdapter.java](src/main/java/br/com/grupo99/billingservice/infrastructure/persistence/adapter/PagamentoRepositoryAdapter.java)
@@ -124,7 +124,7 @@
 ### Phase 8: Update Tests ⏳
 - [ ] Domain layer tests (sem Spring context)
 - [ ] Application layer tests (com mocks)
-- [ ] Integration tests (com MongoDB embarcado)
+- [ ] Integration tests (com DynamoDB Local)
 - [ ] BDD tests (Cucumber scenarios)
 - [ ] Atualizar para novas DTOs/Mappers
 
@@ -180,7 +180,7 @@
         │ OrcamentoRepositoryAdapter               │ ◄─ ADAPTER PATTERN
         │ (Infrastructure)                         │
         │ - Implementa OrcamentoRepository         │
-        │ - Usa MongoOrcamentoRepository internally│
+        │ - Usa DynamoDbOrcamentoRepository internally│
         │ - Converte Domain ↔ Entity               │
         └────────────┬───────────────────────────┘
                      │
@@ -193,19 +193,19 @@
         └────────────┬──────────────────────┘
                      │
         ┌────────────▼─────────────────────────┐
-        │ MongoOrcamentoRepository              │ ◄─ Spring Data
+        │ DynamoDbOrcamentoRepository            │ ◄─ Spring Data
         │ (Infrastructure)                     │
-        │ extends MongoRepository<...>         │
-        │ - MongoDB específico                 │
+        │ uses DynamoDbEnhancedClient           │
+        │ - DynamoDB específico                 │
         └────────────┬─────────────────────────┘
                      │
         ┌────────────▼──────────────────────┐
-        │ MongoDB (Technical Detail)        │ ◄─ Database
+        │ DynamoDB (Technical Detail)        │ ◄─ Database
         │ - Apenas persistência             │
         │ - Nenhuma lógica aqui             │
         └───────────────────────────────────┘
 
-❌ MongoDB NUNCA vê Domain
+❌ DynamoDB NUNCA vê Domain
 ❌ Domain NUNCA vê Spring Data
 ❌ Application Services NUNCA acessa Repository diretamente
 ✅ Camadas com responsabilidades bem definidas
@@ -231,7 +231,7 @@
 ### Phase 8: Update Tests (PRÓXIMO)
 1. Refatorar testes de domínio (remover Spring context)
 2. Criar testes de Application Services com mocks
-3. Criar testes de integração com MongoDB embarcado
+3. Criar testes de integração com DynamoDB Local
 4. Atualizar BDD scenarios para novos endpoints
 
 ### Phase 9: Build & Validation (FINAL)
@@ -283,8 +283,8 @@ src/main/java/br/com/grupo99/billingservice/
     │   │   ├── OrcamentoRepositoryAdapter.java
     │   │   └── PagamentoRepositoryAdapter.java
     │   └── repository/ ✅ (NOVO)
-    │       ├── MongoOrcamentoRepository.java
-    │       └── MongoPagamentoRepository.java
+    │       ├── DynamoDbOrcamentoRepository.java
+    │       └── DynamoDbPagamentoRepository.java
     ├── controller/ ✅ (NOVO)
     │   ├── OrcamentoController.java
     │   └── PagamentoController.java
@@ -313,7 +313,7 @@ src/main/java/br/com/grupo99/billingservice/
 
 ✅ **Infrastructure Layer 100% Abstrata**
 - Adapter Pattern implementado corretamente
-- MongoDB isolado em entities
+- DynamoDB isolado em entities
 - Controllers são simples adaptadores HTTP
 - Event Listener coordena casos de uso
 

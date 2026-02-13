@@ -1,11 +1,9 @@
 package br.com.grupo99.catalogo.domain.model;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
-import org.springframework.data.mongodb.core.index.Indexed;
+import br.com.grupo99.catalogo.adapter.config.JsonMapConverter;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbConvertedBy;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,62 +12,43 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Documento MongoDB para Peça.
+ * Model DynamoDB para Peça.
  * 
- * Migrado de JPA/PostgreSQL para MongoDB/DocumentDB para:
- * - Schema flexível (especificações variam por peça)
- * - Melhor performance em leituras de catálogo
- * - Suporte nativo a campos aninhados e arrays
+ * Migrado de MongoDB/DocumentDB para DynamoDB:
+ * - Schema flexível (especificações via Map armazenado como JSON)
+ * - Alta performance e escalabilidade
+ * - Free Tier da AWS (25GB, 25 RCU, 25 WCU)
  */
-@Document(collection = "pecas")
+@DynamoDbBean
 public class Peca {
 
-    @Id
     private String id;
 
-    @Field("nome")
-    @Indexed
     private String nome;
 
-    @Field("descricao")
     private String descricao;
 
-    @Field("codigo_fabricante")
-    @Indexed(unique = true)
     private String codigoFabricante;
 
-    @Field("preco")
     private BigDecimal preco;
 
-    @Field("quantidade")
     private Integer quantidade;
 
-    @Field("quantidade_minima")
     private Integer quantidadeMinima = 5;
 
-    @Field("ativo")
-    @Indexed
     private Boolean ativo = true;
 
-    // Campos flexíveis para MongoDB - aproveitando schema-less
-    @Field("categorias")
+    // Campos flexíveis - armazenados nativamente no DynamoDB
     private List<String> categorias;
 
-    @Field("especificacoes")
     private Map<String, Object> especificacoes;
 
-    @Field("compatibilidade")
     private List<String> compatibilidade;
 
-    @Field("marca")
     private String marca;
 
-    @CreatedDate
-    @Field("created_at")
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Field("updated_at")
     private LocalDateTime updatedAt;
 
     public Peca() {
@@ -98,6 +77,7 @@ public class Peca {
     }
 
     // Getters e Setters
+    @DynamoDbPartitionKey
     public String getId() {
         return id;
     }
@@ -170,6 +150,7 @@ public class Peca {
         this.categorias = categorias;
     }
 
+    @DynamoDbConvertedBy(JsonMapConverter.class)
     public Map<String, Object> getEspecificacoes() {
         return especificacoes;
     }

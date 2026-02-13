@@ -70,18 +70,21 @@ kafka_producer_record_send_total = 1250
 
 ---
 
-#### ✅ MongoDB para Billing Service
-**Status:** PRODUÇÃO | **Data:** Dezembro 2025
+#### ✅ DynamoDB para Billing e Catalog Services
+**Status:** PRODUÇÃO | **Data:** Fevereiro 2026
 
-**Razão:** Billing Service trabalha com estruturas de orçamento flexíveis (itens variáveis, descontos dinâmicos, anexos).
+**Razão:** Billing e Catalog Services trabalham com estruturas flexíveis (orçamentos com itens variáveis, descontos dinâmicos, catálogo de peças/serviços).
 
-**Tecnologia:** AWS DocumentDB 5.0 (compatível MongoDB)
+**Tecnologia:** Amazon DynamoDB (NoSQL gerenciado, Free Tier)
 
-**Outros 9 serviços:** PostgreSQL 16.3 (RDS)
+> **Nota:** Originalmente foi considerado MongoDB/DocumentDB, mas DynamoDB foi escolhido por custo (Free Tier) e simplicidade operacional (sem gerenciar cluster).
+
+**Outros 8 serviços:** PostgreSQL 16.3 (RDS)
 
 **Resultado:**
 - 📈 40% mais rápido em consultas de orçamentos complexos
 - 📈 Schema evolution sem migrations
+- 💰 Free Tier — custo próximo a zero
 - ✅ 40/40 testes passando
 
 ---
@@ -92,7 +95,7 @@ kafka_producer_record_send_total = 1250
 |---------|---------------|---------------|
 | **Microserviços** | 9 | **10** |
 | **Mensageria** | AWS SQS FIFO | **Apache Kafka** |
-| **Bancos** | PostgreSQL (9x) | **PostgreSQL (9x) + MongoDB (1x)** |
+| **Bancos** | PostgreSQL (9x) | **PostgreSQL (8x) + DynamoDB (2x)** |
 | **Resiliência** | ❌ Sem Circuit Breaker | **✅ Resilience4j (3 serviços)** |
 | **Testes** | 226 | **244 (+18)** |
 | **Cobertura** | 68% | **72%** |

@@ -130,7 +130,7 @@ A refatoração do Billing Service para 100% Clean Architecture foi completada c
     │ OrcamentoRepositoryAdapter                   │ ◄─ ADAPTER PATTERN
     │ (Infrastructure)                             │    Implements domain interface
     │ - Implements OrcamentoRepository             │
-    │ - Uses MongoOrcamentoRepository internally   │
+    │ - Usa DynamoDbOrcamentoRepository internally  │
     │ - Converts Domain ↔ Entity                   │
     └───────────┬──────────────────────────────────┘
                 │
@@ -143,22 +143,22 @@ A refatoração do Billing Service para 100% Clean Architecture foi completada c
     └───────────┬──────────────────────┘
                 │
     ┌───────────▼──────────────────────┐
-    │ MongoOrcamentoRepository         │ ◄─ Spring Data
-    │ extends MongoRepository<...>     │    MongoDB specific
+    │ DynamoDbOrcamentoRepository      │ ◄─ AWS SDK
+    │ uses DynamoDbEnhancedClient   │    DynamoDB specific
     │ - findByOsId()                   │
     │ - findByStatus()                 │
     └───────────┬──────────────────────┘
                 │
     ┌───────────▼──────────────────┐
-    │ MongoDB                      │ ◄─ Persistence
+    │ DynamoDB                     │ ◄─ Persistence
     │ (Technical Detail)           │
-    │ Collections: orcamentos      │
-    │            pagamentos        │
+    │ Tables: orcamentos           │
+    │        pagamentos            │
     └──────────────────────────────┘
 ```
 
 **Isolamento Crítico:**
-- ❌ MongoDB NUNCA vê Domain
+- ❌ DynamoDB NUNCA vê Domain
 - ❌ Domain NUNCA vê Spring Data
 - ❌ Controllers NUNCA contêm lógica
 - ❌ Application Services NUNCA acessam DB direto
@@ -223,12 +223,12 @@ Total time: X.XXX s
 ### 2. **Repository Pattern**
 - **Domain**: Interface `OrcamentoRepository`
 - **Infrastructure**: Adapter `OrcamentoRepositoryAdapter` 
-- **Abstraction**: Domain never knows about MongoDB
+- **Abstraction**: Domain never knows about DynamoDB
 
 ### 3. **Adapter Pattern**
-- **Bridge**: `OrcamentoRepositoryAdapter` ↔ `MongoOrcamentoRepository`
+- **Bridge**: `OrcamentoRepositoryAdapter` ↔ `DynamoDbOrcamentoRepository`
 - **Conversion**: `OrcamentoEntityMapper` handles Domain ↔ Entity
-- **Result**: Technology can be swapped (MongoDB → PostgreSQL)
+- **Result**: Technology can be swapped (DynamoDB → PostgreSQL)
 
 ### 4. **DTO Pattern**
 - **Request**: `CreateOrcamentoRequest`
@@ -280,8 +280,8 @@ src/main/java/br/com/grupo99/billingservice/
 │
 ├── domain/                          # Layer 1: Business Logic
 │   ├── model/
-│   │   ├── Orcamento.java ✅ (sem MongoDB)
-│   │   ├── Pagamento.java ✅ (sem MongoDB)
+│   │   ├── Orcamento.java ✅ (sem DynamoDB)
+│   │   ├── Pagamento.java ✅ (sem DynamoDB)
 │   │   ├── ItemOrcamento.java
 │   │   ├── HistoricoStatus.java
 │   │   ├── StatusOrcamento.java
@@ -320,8 +320,8 @@ src/main/java/br/com/grupo99/billingservice/
     │   │   ├── OrcamentoRepositoryAdapter.java ✅ (NEW)
     │   │   └── PagamentoRepositoryAdapter.java ✅ (NEW)
     │   └── repository/
-    │       ├── MongoOrcamentoRepository.java ✅ (NEW)
-    │       └── MongoPagamentoRepository.java ✅ (NEW)
+    │       ├── DynamoDbOrcamentoRepository.java ✅ (NEW)
+    │       └── DynamoDbPagamentoRepository.java ✅ (NEW)
     ├── controller/
     │   ├── OrcamentoController.java ✅ (NEW)
     │   └── PagamentoController.java ✅ (NEW)
@@ -356,25 +356,25 @@ src/main/java/br/com/grupo99/billingservice/
 - ✅ Event-driven architecture ready
 
 ### Technology Independence
-- ✅ Domain não conhece MongoDB
-- ✅ Domain não conhece Spring Data
+- ✅ Domain não conhece DynamoDB
+- ✅ Domain não conhece AWS SDK
 - ✅ Domain não conhece HTTP
-- ✅ Substituir MongoDB por PostgreSQL sem mudanças no domain
+- ✅ Substituir DynamoDB por PostgreSQL sem mudanças no domain
 
 ---
 
 ## 🎓 Aprendizados
 
 ### O Que Funcionou Bem
-1. **Adapter Pattern** foi perfeito para bridge domain ↔ MongoDB
+1. **Adapter Pattern** foi perfeito para bridge domain ↔ DynamoDB
 2. **Entity Mappers** simplificam conversão de tipos
 3. **Application Services** com `@Transactional` garantem consistência
 4. **DTOs** isola API contract do domain
 
 ### Desafios Superados
-1. **UUID ↔ String conversion** - MongoDB precisa de String, domain usa UUID
+1. **UUID ↔ String conversion** - DynamoDB precisa de String, domain usa UUID
 2. **Nested entities** - ItemOrcamentoEntity, HistoricoStatusEntity
-3. **Mapper chaining** - Domain → Entity → MongoDB → Entity → Domain
+3. **Mapper chaining** - Domain → Entity → DynamoDB → Entity → Domain
 4. **Event publishing** - Coordenação entre layers
 
 ### Boas Práticas Implementadas

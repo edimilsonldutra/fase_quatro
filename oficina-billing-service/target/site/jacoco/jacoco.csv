@@ -1,7 +1,7 @@
 GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
-billing-service,br.com.grupo99.billingservice.infrastructure.persistence.adapter,OrcamentoRepositoryAdapter,10,105,0,0,3,22,1,7,1,7
+billing-service,br.com.grupo99.billingservice.infrastructure.persistence.adapter,OrcamentoRepositoryAdapter,10,104,0,0,3,22,1,7,1,7
 billing-service,br.com.grupo99.billingservice.infrastructure.persistence.adapter,PagamentoEntityMapper,134,3,24,0,30,1,14,1,2,1
-billing-service,br.com.grupo99.billingservice.infrastructure.persistence.adapter,PagamentoRepositoryAdapter,128,13,0,0,25,5,7,2,7,2
+billing-service,br.com.grupo99.billingservice.infrastructure.persistence.adapter,PagamentoRepositoryAdapter,127,13,0,0,25,5,7,2,7,2
 billing-service,br.com.grupo99.billingservice.infrastructure.persistence.adapter,OrcamentoEntityMapper,14,271,16,20,4,68,16,9,0,7
 billing-service,br.com.grupo99.billingservice.infrastructure.controller,PagamentoController,79,10,0,0,24,4,4,2,4,2
 billing-service,br.com.grupo99.billingservice.infrastructure.controller,OrcamentoController,98,10,0,0,30,4,5,2,5,2
@@ -13,6 +13,10 @@ billing-service,br.com.grupo99.billingservice.domain.model,FormaPagamento,0,53,0
 billing-service,br.com.grupo99.billingservice.domain.model,HistoricoStatus,0,19,0,0,0,9,0,3,0,3
 billing-service,br.com.grupo99.billingservice.domain.model,Pagamento,49,100,4,12,17,32,9,12,7,6
 billing-service,br.com.grupo99.billingservice.domain.model,StatusOrcamento,36,55,9,7,4,11,7,6,2,3
+billing-service,br.com.grupo99.billingservice.infrastructure.persistence.repository,DynamoDbOrcamentoRepository,5,154,5,5,2,38,5,11,0,11
+billing-service,br.com.grupo99.billingservice.infrastructure.persistence.repository,DynamoDbPagamentoRepository,166,24,7,3,44,7,11,3,7,2
+billing-service,br.com.grupo99.billingservice.infrastructure.persistence.entity,PagamentoEntity,3,0,0,0,1,0,1,0,1,0
+billing-service,br.com.grupo99.billingservice.infrastructure.persistence.entity,OrcamentoEntity,0,3,0,0,0,1,0,1,0,1
 billing-service,br.com.grupo99.billingservice.application.mapper,OrcamentoMapper,121,3,10,0,35,1,9,1,4,1
 billing-service,br.com.grupo99.billingservice.application.mapper,PagamentoMapper,59,3,4,0,23,1,4,1,2,1
 billing-service,br.com.grupo99.billingservice.infrastructure.security.jwt,JwtAuthorizationFilter,112,6,20,0,32,3,11,1,1,1

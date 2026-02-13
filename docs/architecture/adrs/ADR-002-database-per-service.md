@@ -5,7 +5,7 @@
 
 ## Changelog
 - **Janeiro 2026**: Decisão inicial aceita
-- **Fevereiro 2026**: Saga Pattern implementado com eventos SQS
+- **Fevereiro 2026**: Saga Pattern implementado com eventos Kafka
 
 ## Contexto
 Na arquitetura de microserviços, cada serviço precisa de persistência de dados. Precisamos decidir:
@@ -19,7 +19,7 @@ Adotamos o padrão **Database per Service** com tecnologias específicas para ca
 | Microserviço | Banco de Dados | Justificativa |
 |--------------|----------------|---------------|
 | **OS Service** | PostgreSQL 16.3 | Dados relacionais estruturados, integridade referencial |
-| **Billing Service** | MongoDB | Flexibilidade de schema para orçamentos variáveis |
+| **Billing Service** | DynamoDB | Flexibilidade de schema para orçamentos variáveis |
 | **Execution Service** | PostgreSQL 16.3 | Dados relacionais, queries complexas para relatórios |
 | **Lambda Auth** | PostgreSQL compartilhado | Acesso read-only à tabela `pessoas` |
 
@@ -30,7 +30,7 @@ Adotamos o padrão **Database per Service** com tecnologias específicas para ca
 - **Escalabilidade**: Bancos podem ser escalados independentemente
 - **Isolamento de Falhas**: Problema em um banco não afeta outros serviços
 - **Deploy Independente**: Mudanças de schema não impactam outros serviços
-- **Otimização**: MongoDB para documentos variáveis, PostgreSQL para relacional
+- **Otimização**: DynamoDB para documentos variáveis, PostgreSQL para relacional
 
 ### Negativas ❌
 - **Complexidade Operacional**: Gerenciar múltiplos bancos de dados
@@ -80,11 +80,11 @@ CREATE TABLE historico_status (
 - Queries com JOINs complexos
 - ACID necessário para mudanças de status
 
-### Billing Service - MongoDB
+### Billing Service - DynamoDB
 
-**Collections:**
+**Tables:**
 ```javascript
-// orcamentos collection
+// orcamentos table
 {
   "_id": "orcamento-uuid",
   "osId": "os-uuid",
@@ -110,7 +110,7 @@ CREATE TABLE historico_status (
   "dataAtualizacao": ISODate("2026-01-20T14:30:00Z")
 }
 
-// pagamentos collection
+// pagamentos table
 {
   "_id": "pagamento-uuid",
   "orcamentoId": "orcamento-uuid",
@@ -179,7 +179,7 @@ CREATE TABLE uso_pecas (
 
 ## Consistência Eventual com Saga Pattern
 
-Como não há transações ACID entre serviços, implementamos **Saga Pattern Coreografado** usando Amazon SQS.
+Como não há transações ACID entre serviços, implementamos **Saga Pattern Coreografado** usando Apache Kafka.
 
 ### Implementação Completa
 
@@ -188,34 +188,34 @@ Como não há transações ACID entre serviços, implementamos **Saga Pattern Co
 **OS Service:**
 - `OSCriadaEvent.java` - Evento de OS criada
 - `OrcamentoAprovadoEvent.java` - Evento de orçamento aprovado
-- `EventPublisher.java` - Publicador SQS
-- `EventListener.java` - Consumidor SQS (polling)
-- `SQSConfig.java` - Configuração AWS SQS
+- `KafkaEventPublisher.java` - Publicador Kafka
+- `KafkaEventListener.java` - Consumidor Kafka
+- `KafkaConfig.java` - Configuração Apache Kafka
 
 **Billing Service:**
 - `OSCriadaEvent.java` - Recebe OS criada
 - `DiagnosticoConcluidoEvent.java` - Recebe diagnóstico
 - `OrcamentoProntoEvent.java` - Orçamento calculado
 - `OrcamentoAprovadoEvent.java` - Orçamento aprovado
-- `BillingEventPublisher.java` - Publicador SQS
-- `BillingEventListener.java` - Consumidor SQS
-- `SQSConfig.java` - Configuração AWS SQS
+- `BillingEventPublisher.java` - Publicador Kafka
+- `BillingEventListener.java` - Consumidor Kafka
+- `KafkaConfig.java` - Configuração Apache Kafka
 
 **Execution Service:**
 - `OSCriadaEvent.java` - Recebe OS criada
 - `DiagnosticoConcluidoEvent.java` - Diagnóstico concluído
 - `OrcamentoAprovadoEvent.java` - Recebe aprovação
 - `ExecucaoConcluidaEvent.java` - Execução finalizada
-- `ExecutionEventPublisher.java` - Publicador SQS
-- `ExecutionEventListener.java` - Consumidor SQS
-- `SQSConfig.java` - Configuração AWS SQS
+- `ExecutionEventPublisher.java` - Publicador Kafka
+- `ExecutionEventListener.java` - Consumidor Kafka
+- `KafkaConfig.java` - Configuração Apache Kafka
 
 ### Fluxo Transacional Implementado
 
 ```
 1. POST /api/os → OS Service cria OrdemServico
    ✅ OS: INSERT ordem_servico (status='ABERTA')
-   ✅ OS: PUBLISH "OS_CRIADA" → os-events-queue
+   ✅ OS: PUBLISH "OS_CRIADA" → os-events (topic)
 
 2. Billing/Execution consomem "OS_CRIADA"
    ✅ Billing: INSERT orcamento (status='AGUARDANDO_DIAGNOSTICO')
@@ -223,15 +223,15 @@ Como não há transações ACID entre serviços, implementamos **Saga Pattern Co
 
 3. POST /api/execucoes/{id}/diagnostico → Execution Service
    ✅ Execution: INSERT diagnostico
-   ✅ Execution: PUBLISH "DIAGNOSTICO_CONCLUIDO" → execution-events-queue
+   ✅ Execution: PUBLISH "DIAGNOSTICO_CONCLUIDO" → execution-events (topic)
 
 4. Billing consome "DIAGNOSTICO_CONCLUIDO"
    ✅ Billing: UPDATE orcamento (valorTotal, status='AGUARDANDO_APROVACAO')
-   ✅ Billing: PUBLISH "ORCAMENTO_PRONTO" → billing-events-queue
+   ✅ Billing: PUBLISH "ORCAMENTO_PRONTO" → billing-events (topic)
 
 5. PUT /api/orcamentos/{id}/aprovar → Billing Service
    ✅ Billing: UPDATE orcamento (status='APROVADO')
-   ✅ Billing: PUBLISH "ORCAMENTO_APROVADO" → billing-events-queue
+   ✅ Billing: PUBLISH "ORCAMENTO_APROVADO" → billing-events (topic)
 
 6. OS/Execution consomem "ORCAMENTO_APROVADO"
    ✅ OS: UPDATE ordem_servico (status='EM_EXECUCAO')
@@ -249,19 +249,20 @@ if (orcamentoRepository.findByOsId(event.getOsId()).isPresent()) {
 }
 ```
 
-**2. Deduplicação de Mensagens (Implementada)**
+**2. Chave de Particionamento (Implementada)**
 ```java
-// EventPublisher - messageDeduplicationId
-.messageDeduplicationId(event.getOsId().toString() + "-" + event.getTimestamp())
+// KafkaEventPublisher - record key para ordenação por OS
+kafkaTemplate.send("os-events", event.getOsId().toString(),
+    objectMapper.writeValueAsString(event));
 ```
 
-**3. Long Polling (Implementada)**
+**3. Consumer Group (Implementada)**
 ```java
-// EventListener - waitTimeSeconds
-ReceiveMessageRequest.builder()
-    .waitTimeSeconds(20) // Reduz latência e custos
-    .maxNumberOfMessages(10)
-    .build();
+// KafkaEventListener - consumer group configuration
+@KafkaListener(topics = "os-events", groupId = "os-service-group")
+public void handleEvent(ConsumerRecord<String, String> record) {
+    // Kafka gerencia offset e partições automaticamente
+}
 ```
 
 **4. Compensação (Implementada)**
@@ -275,19 +276,19 @@ public void compensateOSStatus(OrcamentoAprovadoEvent event) {
 }
 ```
 
-### Filas SQS FIFO
+### Tópicos Kafka
 
 ```
-os-events-queue.fifo
+os-events (topic)
 ├── OS_CRIADA (publicado por OS Service)
 └── Consumido por: Billing Service, Execution Service
 
-billing-events-queue.fifo
+billing-events (topic)
 ├── ORCAMENTO_PRONTO (publicado por Billing Service)
 ├── ORCAMENTO_APROVADO (publicado por Billing Service)
 └── Consumido por: OS Service, Execution Service
 
-execution-events-queue.fifo
+execution-events (topic)
 ├── DIAGNOSTICO_CONCLUIDO (publicado por Execution Service)
 ├── EXECUCAO_CONCLUIDA (publicado por Execution Service)
 └── Consumido por: Billing Service, OS Service
@@ -301,15 +302,15 @@ try {
     os.setStatus(StatusOS.EM_EXECUCAO);
     save(os);
 } catch (Exception e) {
-    // Mensagem não é deletada → volta para fila após visibility timeout
-    // Retry automático ou vai para DLQ após maxReceiveCount
+    // Offset não é commitado → mensagem será reprocessada
+    // Retry automático via Kafka consumer retry mechanism
 }
 ```
 
 **Cenário 2: Serviço indisponível**
-- Mensagem permanece na fila
-- Retry com exponential backoff
-- Após 3 tentativas → DLQ
+- Mensagem permanece no tópico (retenção configurável)
+- Retry com exponential backoff via Spring Kafka retry
+- Após 3 tentativas → DLT (Dead Letter Topic)
 - Alerta no New Relic APM
 - Intervenção manual ou reprocessamento
 
@@ -318,7 +319,7 @@ try {
 | Serviço | Estratégia de Backup |
 |---------|---------------------|
 | OS Service | RDS Automated Backups (7 dias) + Snapshots diários |
-| Billing Service | MongoDB Atlas Continuous Backup ou mongodump diário |
+| Billing Service | DynamoDB Point-in-Time Recovery |
 | Execution Service | RDS Automated Backups (7 dias) + Snapshots diários |
 
 ## Alternativas Consideradas
@@ -330,10 +331,10 @@ try {
 
 ### 2. Tudo em PostgreSQL
 - **Prós**: Uma tecnologia, uniformidade
-- **Contras**: Não aproveita flexibilidade do MongoDB
+- **Contras**: Não aproveita flexibilidade do DynamoDB
 - **Motivo da rejeição**: Orçamentos se beneficiam de schema flexível
 
-### 3. Tudo em MongoDB
+### 3. Tudo em DynamoDB
 - **Prós**: Schema flexível para todos
 - **Contras**: Perde ACID, relacionamentos complexos difíceis
 - **Motivo da rejeição**: OS e Execution precisam de relacional
@@ -346,8 +347,8 @@ Para sincronização inicial entre ambientes:
 # Dump OS Service (PostgreSQL)
 pg_dump -h $OS_DB_HOST -U postgres osservice_db > os_backup.sql
 
-# Dump Billing Service (MongoDB)
-mongodump --uri="$MONGO_URI" --db=billing_db --out=billing_backup
+# Export Billing Service (DynamoDB)
+aws dynamodb export-table-to-point-in-time --table-arn $BILLING_TABLE_ARN --s3-bucket $S3_BACKUP_BUCKET --s3-prefix billing_backup
 
 # Dump Execution Service (PostgreSQL)
 pg_dump -h $EXEC_DB_HOST -U postgres execution_db > exec_backup.sql
@@ -356,7 +357,7 @@ pg_dump -h $EXEC_DB_HOST -U postgres execution_db > exec_backup.sql
 ## Referências
 - [Database per Service Pattern](https://microservices.io/patterns/data/database-per-service.html)
 - [AWS RDS Best Practices](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_BestPractices.html)
-- [MongoDB Best Practices](https://www.mongodb.com/docs/manual/administration/production-notes/)
+- [DynamoDB Best Practices](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html)
 - [Saga Pattern](https://microservices.io/patterns/data/saga.html)
 
 ## Revisão

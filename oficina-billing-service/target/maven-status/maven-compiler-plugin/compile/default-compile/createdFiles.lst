@@ -22,7 +22,6 @@ br\com\grupo99\billingservice\application\dto\CreateOrcamentoRequest$ItemOrcamen
 br\com\grupo99\billingservice\infrastructure\persistence\entity\OrcamentoEntity$ItemOrcamentoEntity$ItemOrcamentoEntityBuilder.class
 br\com\grupo99\billingservice\application\dto\PagamentoResponse$PagamentoResponseBuilder.class
 br\com\grupo99\billingservice\infrastructure\controller\OrcamentoController.class
-br\com\grupo99\billingservice\infrastructure\persistence\repository\MongoOrcamentoRepository.class
 br\com\grupo99\billingservice\infrastructure\messaging\KafkaBillingEventPublisher.class
 br\com\grupo99\billingservice\application\mapper\PagamentoMapper.class
 br\com\grupo99\billingservice\infrastructure\persistence\adapter\PagamentoEntityMapper.class
@@ -40,7 +39,6 @@ br\com\grupo99\billingservice\application\dto\CreateOrcamentoRequest.class
 br\com\grupo99\billingservice\domain\model\Pagamento$PagamentoBuilder.class
 br\com\grupo99\billingservice\infrastructure\messaging\BillingEventPublisher.class
 br\com\grupo99\billingservice\infrastructure\security\jwt\JwtAuthorizationFilter.class
-br\com\grupo99\billingservice\infrastructure\persistence\repository\MongoPagamentoRepository.class
 br\com\grupo99\billingservice\infrastructure\config\SQSConfig.class
 br\com\grupo99\billingservice\infrastructure\config\OpenApiConfig.class
 br\com\grupo99\billingservice\domain\repository\PagamentoRepository.class

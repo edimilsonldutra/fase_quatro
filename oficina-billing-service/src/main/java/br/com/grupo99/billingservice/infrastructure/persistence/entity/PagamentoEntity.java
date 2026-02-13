@@ -4,27 +4,25 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Entity MongoDB para Pagamento
+ * Entity DynamoDB para Pagamento
  * 
  * ✅ CLEAN ARCHITECTURE: Entity fica na infrastructure layer
+ * Migrado de MongoDB (@Document) para DynamoDB (@DynamoDbBean)
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "pagamentos")
+@DynamoDbBean
 public class PagamentoEntity {
 
-    @Id
     private String id;
 
     private String orcamentoId;
@@ -46,9 +44,12 @@ public class PagamentoEntity {
 
     private String motivoEstorno;
 
-    @CreatedDate
     private Instant createdAt;
 
-    @LastModifiedDate
     private Instant updatedAt;
+
+    @DynamoDbPartitionKey
+    public String getId() {
+        return this.id;
+    }
 }

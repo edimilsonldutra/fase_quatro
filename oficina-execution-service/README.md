@@ -3,7 +3,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.13-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk)](https://openjdk.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-316192?logo=postgresql)](https://www.postgresql.org/)
-[![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazon-aws)](https://aws.amazon.com/sqs/)
+[![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-3.7.2-231F20?logo=apachekafka)](https://kafka.apache.org/)
 
 Microsserviço responsável por gerenciar a execução, diagnósticos, tarefas e uso de peças em uma oficina mecânica.
 
@@ -14,7 +14,7 @@ Microsserviço responsável por gerenciar a execução, diagnósticos, tarefas e
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
 - [APIs REST](#apis-rest)
-- [Eventos (SQS)](#eventos-sqs)
+- [Eventos (Kafka)](#eventos-kafka)
 - [Banco de Dados](#banco-de-dados)
 - [Configuração](#configuração)
 - [Deploy](#deploy)
@@ -51,7 +51,7 @@ Este serviço representa o **bounded context "Execução e Produção"** no mode
 ```
 ┌─────────────────────────────────────────┐
 │        Infrastructure Layer             │
-│  (REST Controllers, SQS Listeners,      │
+│  (REST Controllers, Kafka Listeners,     │
 │   PostgreSQL Repositories, Configs)     │
 └──────────────┬──────────────────────────┘
                │
@@ -81,7 +81,7 @@ Este serviço representa o **bounded context "Execução e Produção"** no mode
 | **Framework** | Spring Boot | 3.3.13 | Framework moderno e produtivo |
 | **Linguagem** | Java | 21 | LTS com virtual threads |
 | **Banco de Dados** | PostgreSQL | 16 | ACID para controle de estoque |
-| **Mensageria** | AWS SQS | - | Comunicação assíncrona |
+| **Mensageria** | Apache Kafka | 3.7.2 | Comunicação assíncrona (Event-Driven) |
 | **ORM** | Spring Data JPA | - | Simplifica acesso ao banco |
 | **Migrations** | Flyway | - | Versionamento de schema |
 | **Observabilidade** | New Relic APM | - | Monitoramento e tracing |
@@ -229,7 +229,7 @@ Authorization: Bearer <JWT>
 
 ---
 
-## 📨 Eventos (SQS)
+## 📨 Eventos (Kafka)
 
 ### Eventos Publicados
 
@@ -237,7 +237,7 @@ Authorization: Bearer <JWT>
 
 Publicado quando execução é iniciada.
 
-**Fila:** `execution-events-queue`
+**Tópico:** `execution-events`
 
 **Payload:**
 ```json
@@ -289,7 +289,7 @@ Publicado quando execução é finalizada.
 
 Inicia execução quando pagamento é confirmado.
 
-**Fila consumida:** `billing-events-queue`
+**Tópico consumido:** `billing-events`
 
 ---
 
@@ -402,10 +402,10 @@ POSTGRES_DB: execution_db
 POSTGRES_USER: <from-secrets-manager>
 POSTGRES_PASSWORD: <from-secrets-manager>
 
-# AWS SQS
-AWS_REGION: us-east-1
-BILLING_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/billing-events-queue
-EXECUTION_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/execution-events-queue
+# Apache Kafka
+KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+KAFKA_TOPIC_BILLING_EVENTS: billing-events
+KAFKA_TOPIC_EXECUTION_EVENTS: execution-events
 
 # Spring Profiles
 SPRING_PROFILES_ACTIVE: prod

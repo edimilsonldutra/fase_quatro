@@ -3,7 +3,7 @@
 import br.com.grupo99.billingservice.domain.model.Pagamento;
 import br.com.grupo99.billingservice.domain.model.StatusPagamento;
 import br.com.grupo99.billingservice.domain.repository.PagamentoRepository;
-import br.com.grupo99.billingservice.infrastructure.persistence.repository.MongoPagamentoRepository;
+import br.com.grupo99.billingservice.infrastructure.persistence.repository.DynamoDbPagamentoRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -17,34 +17,35 @@ import java.util.stream.Collectors;
  * 
  * ✅ CLEAN ARCHITECTURE - ADAPTER PATTERN:
  * - Implementa a interface de domínio
- * - Adapta MongoDB para domínio
+ * - Adapta DynamoDB para domínio
  * - Domain não conhece detalhes de persistência
+ * - Migrado de MongoDB para DynamoDB
  */
-<span class="fc" id="L23">@Slf4j</span>
+<span class="fc" id="L24">@Slf4j</span>
 @Component
 public class PagamentoRepositoryAdapter implements PagamentoRepository {
 
-    private final MongoPagamentoRepository mongoRepository;
+    private final DynamoDbPagamentoRepository dynamoDbRepository;
     private final PagamentoEntityMapper mapper;
 
     public PagamentoRepositoryAdapter(
-            MongoPagamentoRepository mongoRepository,
-<span class="fc" id="L32">            PagamentoEntityMapper mapper) {</span>
-<span class="fc" id="L33">        this.mongoRepository = mongoRepository;</span>
-<span class="fc" id="L34">        this.mapper = mapper;</span>
-<span class="fc" id="L35">    }</span>
+            DynamoDbPagamentoRepository dynamoDbRepository,
+<span class="fc" id="L33">            PagamentoEntityMapper mapper) {</span>
+<span class="fc" id="L34">        this.dynamoDbRepository = dynamoDbRepository;</span>
+<span class="fc" id="L35">        this.mapper = mapper;</span>
+<span class="fc" id="L36">    }</span>
 
     /**
      * Salva um Pagamento
      */
     @Override
     public Pagamento save(Pagamento pagamento) {
-<span class="nc" id="L42">        log.debug(&quot;Salvando pagamento: {}&quot;, pagamento.getId());</span>
+<span class="nc" id="L43">        log.debug(&quot;Salvando pagamento: {}&quot;, pagamento.getId());</span>
 
-        // Domain → Entity → MongoDB → Entity → Domain
-<span class="nc" id="L45">        var entity = mapper.toEntity(pagamento);</span>
-<span class="nc" id="L46">        var saved = mongoRepository.save(entity);</span>
-<span class="nc" id="L47">        return mapper.toDomain(saved);</span>
+        // Domain → Entity → DynamoDB → Entity → Domain
+<span class="nc" id="L46">        var entity = mapper.toEntity(pagamento);</span>
+<span class="nc" id="L47">        var saved = dynamoDbRepository.save(entity);</span>
+<span class="nc" id="L48">        return mapper.toDomain(saved);</span>
     }
 
     /**
@@ -52,9 +53,9 @@ public class PagamentoRepositoryAdapter implements PagamentoRepository {
      */
     @Override
     public Optional&lt;Pagamento&gt; findById(UUID id) {
-<span class="nc" id="L55">        log.debug(&quot;Buscando pagamento por id: {}&quot;, id);</span>
-<span class="nc" id="L56">        var entity = mongoRepository.findById(id.toString());</span>
-<span class="nc" id="L57">        return entity.map(mapper::toDomain);</span>
+<span class="nc" id="L56">        log.debug(&quot;Buscando pagamento por id: {}&quot;, id);</span>
+<span class="nc" id="L57">        var entity = dynamoDbRepository.findById(id.toString());</span>
+<span class="nc" id="L58">        return entity.map(mapper::toDomain);</span>
     }
 
     /**
@@ -62,9 +63,9 @@ public class PagamentoRepositoryAdapter implements PagamentoRepository {
      */
     @Override
     public Optional&lt;Pagamento&gt; findByOrcamentoId(UUID orcamentoId) {
-<span class="nc" id="L65">        log.debug(&quot;Buscando pagamento por orcamentoId: {}&quot;, orcamentoId);</span>
-<span class="nc" id="L66">        var entity = mongoRepository.findByOrcamentoId(orcamentoId.toString());</span>
-<span class="nc" id="L67">        return entity.map(mapper::toDomain);</span>
+<span class="nc" id="L66">        log.debug(&quot;Buscando pagamento por orcamentoId: {}&quot;, orcamentoId);</span>
+<span class="nc" id="L67">        var entity = dynamoDbRepository.findByOrcamentoId(orcamentoId.toString());</span>
+<span class="nc" id="L68">        return entity.map(mapper::toDomain);</span>
     }
 
     /**
@@ -72,11 +73,11 @@ public class PagamentoRepositoryAdapter implements PagamentoRepository {
      */
     @Override
     public List&lt;Pagamento&gt; findByOsId(UUID osId) {
-<span class="nc" id="L75">        log.debug(&quot;Buscando pagamentos por osId: {}&quot;, osId);</span>
-<span class="nc" id="L76">        var entities = mongoRepository.findByOsId(osId.toString());</span>
-<span class="nc" id="L77">        return entities.stream()</span>
-<span class="nc" id="L78">                .map(mapper::toDomain)</span>
-<span class="nc" id="L79">                .collect(Collectors.toList());</span>
+<span class="nc" id="L76">        log.debug(&quot;Buscando pagamentos por osId: {}&quot;, osId);</span>
+<span class="nc" id="L77">        var entities = dynamoDbRepository.findByOsId(osId.toString());</span>
+<span class="nc" id="L78">        return entities.stream()</span>
+<span class="nc" id="L79">                .map(mapper::toDomain)</span>
+<span class="nc" id="L80">                .collect(Collectors.toList());</span>
     }
 
     /**
@@ -84,11 +85,11 @@ public class PagamentoRepositoryAdapter implements PagamentoRepository {
      */
     @Override
     public List&lt;Pagamento&gt; findByStatus(StatusPagamento status) {
-<span class="nc" id="L87">        log.debug(&quot;Buscando pagamentos por status: {}&quot;, status);</span>
-<span class="nc" id="L88">        var entities = mongoRepository.findByStatus(status.name());</span>
-<span class="nc" id="L89">        return entities.stream()</span>
-<span class="nc" id="L90">                .map(mapper::toDomain)</span>
-<span class="nc" id="L91">                .collect(Collectors.toList());</span>
+<span class="nc" id="L88">        log.debug(&quot;Buscando pagamentos por status: {}&quot;, status);</span>
+<span class="nc" id="L89">        var entities = dynamoDbRepository.findByStatus(status.name());</span>
+<span class="nc" id="L90">        return entities.stream()</span>
+<span class="nc" id="L91">                .map(mapper::toDomain)</span>
+<span class="nc" id="L92">                .collect(Collectors.toList());</span>
     }
 
     /**
@@ -96,8 +97,8 @@ public class PagamentoRepositoryAdapter implements PagamentoRepository {
      */
     @Override
     public boolean existsByOrcamentoIdAndStatus(UUID orcamentoId, StatusPagamento status) {
-<span class="nc" id="L99">        log.debug(&quot;Verificando existência de pagamento para orcamentoId: {} e status: {}&quot;, orcamentoId, status);</span>
-<span class="nc" id="L100">        return mongoRepository.existsByOrcamentoIdAndStatus(orcamentoId.toString(), status.name());</span>
+<span class="nc" id="L100">        log.debug(&quot;Verificando existência de pagamento para orcamentoId: {} e status: {}&quot;, orcamentoId, status);</span>
+<span class="nc" id="L101">        return dynamoDbRepository.existsByOrcamentoIdAndStatus(orcamentoId.toString(), status.name());</span>
     }
 
     /**
@@ -105,8 +106,8 @@ public class PagamentoRepositoryAdapter implements PagamentoRepository {
      */
     @Override
     public void deleteById(UUID id) {
-<span class="nc" id="L108">        log.debug(&quot;Deletando pagamento: {}&quot;, id);</span>
-<span class="nc" id="L109">        mongoRepository.deleteById(id.toString());</span>
-<span class="nc" id="L110">    }</span>
+<span class="nc" id="L109">        log.debug(&quot;Deletando pagamento: {}&quot;, id);</span>
+<span class="nc" id="L110">        dynamoDbRepository.deleteById(id.toString());</span>
+<span class="nc" id="L111">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

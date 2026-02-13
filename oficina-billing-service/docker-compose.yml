@@ -1,22 +1,17 @@
 version: '3.8'
 
 services:
-  # MongoDB
-  mongodb:
-    image: mongo:7.0
-    container_name: billing-mongodb
+  # DynamoDB Local (substitui MongoDB)
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: billing-dynamodb-local
     ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: billing_db
-    volumes:
-      - mongodb_data:/data/db
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     networks:
       - billing-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "curl -s http://localhost:8000 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -134,13 +129,13 @@ services:
     ports:
       - "8082:8082"
     environment:
-      MONGODB_URI: mongodb://admin:admin123@mongodb:27017
-      MONGODB_DATABASE: billing_db
+      AWS_DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: us-east-1
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_PROFILES_ACTIVE: local
       LOG_LEVEL: DEBUG
     depends_on:
-      mongodb:
+      dynamodb-local:
         condition: service_healthy
       kafka:
         condition: service_healthy
@@ -154,7 +149,6 @@ services:
       start_period: 60s
 
 volumes:
-  mongodb_data:
   localstack_data:
 
 networks:

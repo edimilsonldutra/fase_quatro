@@ -37,7 +37,7 @@
                  │                   │                   │
         ┌────────▼────────┐ ┌───────▼────────┐ ┌───────▼────────┐
         │   OS Service    │ │ Execution Svc  │ │ Billing Svc    │
-        │   PostgreSQL    │ │   PostgreSQL   │ │   MongoDB      │
+        │   PostgreSQL    │ │   PostgreSQL   │ │   DynamoDB     │
         │   48 tests ✅   │ │   47 tests ✅  │ │  40 tests ✅   │
         └────────┬────────┘ └───────┬────────┘ └───────┬────────┘
                  │                   │                   │
@@ -89,7 +89,7 @@ GET    /api/v1/execucoes/{osId}
 ---
 
 ### 3️⃣ **Billing Service** (Orçamento e Pagamento)
-- **Banco:** MongoDB (DocumentDB) - Schema flexível para orçamentos
+- **Banco:** DynamoDB (NoSQL) - Schema flexível para orçamentos
 - **Responsabilidade:** Orçamentos, aprovações e pagamentos
 - **Eventos Publicados:** `OrcamentoProntoEvent`, `OrcamentoAprovadoEvent`, `PagamentoFalhouEvent`
 - **Eventos Consumidos:** `OSCriadaEvent`, `DiagnosticoConcluidoEvent`, `ExecucaoConcluidaEvent`
@@ -272,7 +272,7 @@ src/main/java/br/com/grupo99/{service}/
 └── infrastructure/     # Camada de Infraestrutura (Adaptadores)
     ├── rest/          # Controllers REST
     ├── messaging/     # Kafka Publishers/Listeners
-    ├── persistence/   # Repositories JPA/MongoDB
+    ├── persistence/   # Repositories JPA/DynamoDB
     └── config/        # Configurações Spring
 ```
 
@@ -294,7 +294,7 @@ src/main/java/br/com/grupo99/{service}/
 |---------|-------|---------------|
 | **OS Service** | PostgreSQL | Dados estruturados, relacionamentos complexos |
 | **Execution Service** | PostgreSQL | Dados estruturados, tarefas e diagnósticos |
-| **Billing Service** | **MongoDB (DocumentDB)** | Schema flexível para orçamentos variáveis |
+| **Billing Service** | **DynamoDB** | Schema flexível para orçamentos variáveis |
 | **People Service** | PostgreSQL | Dados estruturados de pessoas |
 | **Customer Service** | PostgreSQL | Clientes e veículos relacionados |
 | **HR Service** | PostgreSQL | Funcionários e departamentos |
@@ -303,7 +303,7 @@ src/main/java/br/com/grupo99/{service}/
 | **Maintenance Service** | PostgreSQL | Manutenções agendadas |
 | **Notification Service** | PostgreSQL | Histórico de notificações |
 
-**Total:** 9 PostgreSQL + 1 MongoDB
+**Total:** 9 PostgreSQL + 1 DynamoDB
 
 ---
 
@@ -331,9 +331,9 @@ src/main/java/br/com/grupo99/{service}/
 │         ┌──────────────────────┼──────────────────┐│
 │         │                      │                  ││
 │  ┌──────▼──────┐   ┌──────────▼─────┐  ┌────────▼▼─────┐
-│  │ RDS (9x)    │   │   DocumentDB   │  │  Apache Kafka  │
-│  │ PostgreSQL  │   │   (MongoDB)    │  │   Cluster      │
-│  │   16.3      │   │   5.0 compat   │  │   3.7.2        │
+│  │ RDS (9x)    │   │   DynamoDB    │  │  Apache Kafka  │
+│  │ PostgreSQL  │   │ (Billing +   │  │   Cluster      │
+│  │   16.3      │   │  Catalog)     │  │   3.7.2        │
 │  └─────────────┘   └────────────────┘  └────────────────┘
 │                                                     │
 │  ┌──────────────────────────────────────────────┐ │
@@ -352,8 +352,7 @@ src/main/java/br/com/grupo99/{service}/
 
 ```
 tech_challenge_db_infra/
-├── rds.tf                  # 9 instâncias PostgreSQL
-├── documentdb.tf           # 1 cluster MongoDB
+├── rds.tf                  # 9 instâncias PostgreSQL + DynamoDB
 ├── security.tf            # Security Groups
 └── ssm.tf                 # Parameter Store
 

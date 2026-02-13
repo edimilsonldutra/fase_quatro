@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: br.com.grupo99.billingservice.domain.model.OrcamentoTest
 -------------------------------------------------------------------------------
-Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.217 s - in br.com.grupo99.billingservice.domain.model.OrcamentoTest
+Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.176 s - in br.com.grupo99.billingservice.domain.model.OrcamentoTest

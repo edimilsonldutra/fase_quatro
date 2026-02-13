@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: br.com.grupo99.catalogo.adapter.web.ServicoControllerTest
 -------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.908 s -- in br.com.grupo99.catalogo.adapter.web.ServicoControllerTest
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.309 s -- in br.com.grupo99.catalogo.adapter.web.ServicoControllerTest

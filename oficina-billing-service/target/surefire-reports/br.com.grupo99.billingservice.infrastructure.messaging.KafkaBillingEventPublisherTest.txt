@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: br.com.grupo99.billingservice.infrastructure.messaging.KafkaBillingEventPublisherTest
 -------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 49.933 s - in br.com.grupo99.billingservice.infrastructure.messaging.KafkaBillingEventPublisherTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 51.277 s - in br.com.grupo99.billingservice.infrastructure.messaging.KafkaBillingEventPublisherTest

@@ -11,7 +11,7 @@ Solução cloud-native que gerencia o ciclo de vida completo de uma oficina mec�
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │ OS Service  │────▶│   Billing   │────▶│ Execution   │
-│(PostgreSQL) │     │  (MongoDB)  │     │(PostgreSQL) │
+│(PostgreSQL) │     │ (DynamoDB)  │     │(PostgreSQL) │
 └─────────────┘     └─────────────┘     └─────────────┘
        │                   │                    │
        └───────────────────┴────────────────────┘
@@ -37,13 +37,13 @@ Solução cloud-native que gerencia o ciclo de vida completo de uma oficina mec�
 ### Backend
 - **Java 21** - Runtime principal
 - **Spring Boot 3.3** - Framework de aplicação
-- **PostgreSQL 16.3** - Banco relacional (OS, Execution)
-- **MongoDB 7.x** - Banco NoSQL (Billing)
+- **PostgreSQL 16.3** - Banco relacional (OS, Execution e demais serviços)
+- **Amazon DynamoDB** - Banco NoSQL (Billing, Catalog)
 
 ### Cloud & Infrastructure
 - **AWS EKS** - Kubernetes gerenciado (versão 1.29)
 - **Amazon RDS** - PostgreSQL gerenciado
-- **Amazon DocumentDB / MongoDB** - MongoDB gerenciado
+- **Amazon DynamoDB** - Banco NoSQL gerenciado (Free Tier)
 - **Apache Kafka** - Event streaming platform
 - **AWS Lambda** - Autenticação serverless
 - **Terraform** - Infrastructure as Code
@@ -79,7 +79,7 @@ Responsável por gerenciar o ciclo de vida das ordens de serviço.
 
 ### 2. Billing Service (Faturamento)
 **Porta**: 8082  
-**Banco**: MongoDB  
+**Banco**: DynamoDB  
 **Namespace**: billing-service
 
 Responsável por orçamentos, pagamentos e histórico financeiro.
@@ -125,18 +125,18 @@ Autenticação serverless via CPF e geração de tokens JWT.
 ### Event-Driven Architecture
 
 ```
-OS Service ──(publish)──> os-events-queue ──(consume)──> Billing/Execution
-Billing    ──(publish)──> billing-events-queue ──(consume)──> OS/Execution
-Execution  ──(publish)──> execution-events-queue ──(consume)──> OS/Billing
+OS Service ──(publish)──> os-events (Kafka topic) ──(consume)──> Billing/Execution
+Billing    ──(publish)──> billing-events (Kafka topic) ──(consume)──> OS/Execution
+Execution  ──(publish)──> execution-events (Kafka topic) ──(consume)──> OS/Billing
 ```
 
-### Filas SQS
+### Tópicos Kafka
 
-| Fila | Produtor | Consumidores | Tipos de Eventos |
-|------|----------|--------------|------------------|
-| `os-events-queue` | OS Service | Billing, Execution | OS_CRIADA, STATUS_CHANGED, OS_CANCELADA |
-| `billing-events-queue` | Billing Service | OS, Execution | ORCAMENTO_CRIADO, ORCAMENTO_APROVADO, PAGAMENTO_CONFIRMADO |
-| `execution-events-queue` | Execution Service | OS, Billing | DIAGNOSTICO_CONCLUIDO, TAREFA_CONCLUIDA, EXECUCAO_FINALIZADA |
+| Tópico | Produtor | Consumidores | Tipos de Eventos |
+|--------|----------|--------------|------------------|
+| `os-events` | OS Service | Billing, Execution | OS_CRIADA, STATUS_CHANGED, OS_CANCELADA |
+| `billing-events` | Billing Service | OS, Execution | ORCAMENTO_CRIADO, ORCAMENTO_APROVADO, PAGAMENTO_CONFIRMADO |
+| `execution-events` | Execution Service | OS, Billing | DIAGNOSTICO_CONCLUIDO, TAREFA_CONCLUIDA, EXECUCAO_FINALIZADA |
 
 ## 🔀 Saga Pattern: Decisão por Coreografia (Choreography)
 
@@ -168,7 +168,7 @@ Este projeto implementa o **Saga Pattern Coreografado** para coordenar transaç�
 2. **Escalabilidade e Performance**
    - Não há gargalo de um orquestrador central
    - Cada serviço escala independentemente conforme sua carga
-   - AWS SQS gerencia automaticamente picos de mensagens
+   - Apache Kafka gerencia automaticamente picos de mensagens com partições e consumer groups
 
 3. **Resiliência e Disponibilidade**
    - Não existe Single Point of Failure (SPOF)
@@ -176,7 +176,7 @@ Este projeto implementa o **Saga Pattern Coreografado** para coordenar transaç�
    - Compensações automáticas em caso de falhas
 
 4. **Alinhamento com Event-Driven Architecture**
-   - Já utilizávamos SQS para comunicação assíncrona
+   - Migramos de SQS para Kafka, ganhando replay de eventos e alta throughput
    - Eventos são naturalmente parte do domínio (OS criada, orçamento aprovado, etc.)
    - Equipe já tinha experiência com mensageria
 
@@ -216,7 +216,7 @@ O Saga Coreografado está implementado com:
 - ✅ **9 tipos de eventos**: 5 fluxo normal + 4 compensação
 - ✅ **Rollback e Compensação**: Automático via try-catch nos listeners
 - ✅ **Idempotência**: Verificação de duplicatas antes de processar
-- ✅ **Retry e DLQ**: SQS com reprocessamento e Dead Letter Queue
+- ✅ **Retry e DLQ**: Kafka com retry topics e Dead Letter Topic
 - ✅ **Distributed Tracing**: New Relic rastreando todos os eventos
 
 ### Documentação Completa do Saga
@@ -351,7 +351,7 @@ data:
 
 1. **Microservices Overview** - Visão geral de todos os serviços
 2. **Distributed Traces** - Traces completos entre serviços
-3. **SQS Monitoring** - Monitoramento de filas
+3. **Kafka Monitoring** - Monitoramento de tópicos e consumer groups
 4. **Database Performance** - Queries lentas e conexões
 
 ### Alertas Configurados
@@ -361,7 +361,7 @@ data:
 | High Latency | P95 > 3s por 5 min | Critical |
 | Error Rate Spike | Taxa > 5% | Critical |
 | Service Down | Apdex < 0.5 | Critical |
-| SQS DLQ Growing | DLQ > 10 msgs | Warning |
+| Kafka DLT Growing | DLT > 10 msgs | Warning |
 
 ## 📖 Documentação
 
@@ -444,8 +444,8 @@ kubectl get svc -n execution-service
 | EKS Cluster | $73 |
 | EC2 Nodes (4x t3.medium) | $200 |
 | RDS PostgreSQL (2 instâncias) | $200 |
-| MongoDB/DocumentDB | $80 |
-| SQS | $10 |
+| DynamoDB | $25 (Free Tier) |
+| Kafka (MSK) | $15 |
 | New Relic | $150 |
 | **Total** | **$713** |
 
@@ -453,7 +453,7 @@ kubectl get svc -n execution-service
 
 ### Fase 4 (Atual) ✅
 - [x] Arquitetura de microserviços
-- [x] Event-Driven com SQS
+- [x] Event-Driven com Apache Kafka (migrado de SQS)
 - [x] CI/CD pipelines
 - [x] New Relic Distributed Tracing
 - [x] Swagger documentation

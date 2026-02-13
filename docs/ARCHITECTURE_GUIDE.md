@@ -211,7 +211,7 @@ DELETE /ordens-servico/{id}           # Cancelar OS
 │     INFRASTRUCTURE                     │
 │  - Spring Framework                    │
 │  - JPA/Hibernate                       │
-│  - AWS SDK (SQS)                       │
+│  - Spring Kafka                         │
 │  - Controllers (REST)                  │
 │  - Adapters de Repositório             │
 │  - Adaptadores de Messaging            │
@@ -267,7 +267,7 @@ interface JpaOrdemServicoRepository
 
 **Vantagens:**
 - Domain não conhece JPA
-- Fácil trocar PostgreSQL por MongoDB
+- Fácil trocar PostgreSQL por DynamoDB
 - Testável com mocks
 
 ---
@@ -325,7 +325,7 @@ public class OrdemServicoRepositoryAdapter
 └────────┬─────────────────────┘
          │
          ▼
-    [AWS SQS Queue]
+    [Apache Kafka Topic]
     - OSCriadaEvent
          │
          ├─────────────────┬──────────────────┐
@@ -345,7 +345,7 @@ public class OrdemServicoRepositoryAdapter
          │               │
          └───────┬───────┘
                  │
-         [SQS Queue]
+         [Kafka Topic]
                  │
          ┌───────┴───────┐
          │               │
@@ -374,26 +374,27 @@ public class OrdemServicoApplicationService {
     }
 }
 
-// Publicador (SQS)
+// Publicador (Kafka)
 @Component
 public class OrdemServicoEventPublisher {
     
     @Autowired
-    private SqsTemplate sqsTemplate;
+    private KafkaTemplate<String, DomainEvent> kafkaTemplate;
     
     public void publish(DomainEvent event) {
-        sqsTemplate.send(
-            "os-events-queue", 
+        kafkaTemplate.send(
+            "os-events", 
+            event.getId().toString(),
             event
         );
     }
 }
 
-// Consumidor (SQS Listener)
+// Consumidor (Kafka Listener)
 @Component
 public class BillingEventListener {
     
-    @SqsListener("os-events-queue")
+    @KafkaListener(topics = "os-events", groupId = "billing-group")
     public void onOSCreated(OSCriadaEvent event) {
         // Reage ao evento
         billingService.criarOrcamento(event);
@@ -445,7 +446,7 @@ public class PostgresOSRepository
     // Implementação específica
 }
 
-public class MongoOSRepository 
+public class DynamoDbOSRepository 
         implements Repository<OrdemServico> {
     // Outra implementação
 }
@@ -564,9 +565,9 @@ T3: Billing Service
 RESULTADO: Rollback em cascata via eventos
 ```
 
-### Tópicos SQS
+### Tópicos Kafka
 
-| Fila | Produtor | Consumidores |
+| Tópico | Produtor | Consumidores |
 |------|----------|--------------|
 | `os-events` | OS Service | Billing, Execution |
 | `billing-events` | Billing Service | Execution, OS |
@@ -585,7 +586,7 @@ RESULTADO: Rollback em cascata via eventos
 | **Spring Data JPA** | 3.1.x | ORM |
 | **Hibernate** | 6.2.x | Persistência |
 | **Lombok** | 1.18.30 | Boilerplate reduction |
-| **Spring Cloud AWS** | 3.0.x | SQS integration |
+| **Spring Kafka** | 3.1.x | Kafka integration |
 | **Cucumber** | 7.15.0 | BDD tests |
 | **JUnit 5** | 5.9.x | Unit tests |
 | **Mockito** | 5.2.x | Mocks |
@@ -603,7 +604,7 @@ RESULTADO: Rollback em cascata via eventos
 
 | Serviço | Propósito |
 |---------|----------|
-| **AWS SQS** | Message Queue (Event-Driven) |
+| **Apache Kafka** | Message Broker (Event-Driven) |
 | **AWS RDS** | Banco de dados PostgreSQL |
 | **AWS EKS** | Kubernetes Cluster |
 | **AWS ECR** | Container Registry |
@@ -635,7 +636,7 @@ Regras:
 ✅ Testável sem Spring
 ❌ Sem @Component, @Service, @Repository
 ❌ Sem @Entity, @Column, @JPA
-❌ Sem SqsClient, HttpClient, etc.
+❌ Sem KafkaTemplate, HttpClient, etc.
 ```
 
 **Exemplo de Model:**
@@ -741,8 +742,8 @@ infrastructure/
 │   └── mapper/
 │       └── OrdemServicoMapper.java        [Domain ↔ JPA]
 ├── messaging/
-│   ├── OrdemServicoEventPublisher.java    [SQS Publisher]
-│   ├── OrdemServicoEventListener.java     [SQS Listener]
+│   ├── OrdemServicoEventPublisher.java    [Kafka Producer]
+│   ├── OrdemServicoEventListener.java     [Kafka Consumer]
 │   └── [other listeners]
 ├── config/
 │   └── OsServiceApplication.java          [Spring Config]
@@ -752,7 +753,7 @@ infrastructure/
 
 Regras:
 ✅ Implementações com Spring
-✅ JPA, SQS, HTTP, etc.
+✅ JPA, Kafka, HTTP, etc.
 ✅ Adapters implementam domain interfaces
 ```
 
@@ -968,7 +969,7 @@ public class NovaEntidadeEventListener {
     @Autowired
     private OutroService outroService;
     
-    @SqsListener("nova-entidade-events")
+    @KafkaListener(topics = "nova-entidade-events", groupId = "service-group")
     public void onNovaEntidadeCriada(
             NovaEntidadeCriadaEvent event) {
         outroService.reagirAoEvento(event);
@@ -1204,7 +1205,7 @@ kubectl apply -f k8s/ingress.yaml
 - [ ] Imagem Docker built e testada
 - [ ] Secrets AWS configurados
 - [ ] Database migrations aplicadas
-- [ ] SQS queues criadas
+- [ ] Kafka topics criados
 - [ ] CloudWatch alarms configurados
 - [ ] New Relic instrumentado
 - [ ] Load balancer testado
@@ -1241,24 +1242,24 @@ Caused by: org.springframework.beans.factory.NoSuchBeanDefinitionException
 
 ---
 
-### Problema 2: Testes falhando com "SQS connection refused"
+### Problema 2: Testes falhando com "Kafka connection refused"
 
 **Sintoma:**
 ```
-ERROR: SqsClient: Could not connect to localhost:4566
+ERROR: KafkaProducer: Could not connect to localhost:9092
 ```
 
 **Causa:**
-LocalStack/SQS não está rodando, e config ativa SQS em testes.
+Kafka broker não está rodando, e config ativa Kafka em testes.
 
 **Solução:**
 ```yaml
 # application-test.yml
 spring:
-  cloud:
-    aws:
-      sqs:
-        enabled: false  # ← Desativar SQS em testes!
+  kafka:
+    bootstrap-servers: ""
+    consumer:
+      auto-startup: false  # ← Desativar Kafka consumers em testes!
 ```
 
 ---
@@ -1347,18 +1348,18 @@ OS criada, mas Billing não cria orçamento automaticamente
     repository.save(os);  // Salva domain com eventos
     publisher.publish(os.getDomainEvents());  // Publica
 
-[ ] SQS fila criada?
-    aws sqs list-queues
+[ ] Kafka topic criado?
+    kafka-topics --list --bootstrap-server localhost:9092
 
 [ ] Listener está escutando?
-    @SqsListener("os-events-queue")
+    @KafkaListener(topics = "os-events", groupId = "billing-group")
     public void onOSCreated(OSCriadaEvent event) { ... }
 
 [ ] Listener está ativado?
-    spring.cloud.aws.sqs.enabled: true
+    spring.kafka.consumer.auto-startup: true
 
-[ ] IAM permissions?
-    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY configurados
+[ ] Kafka broker acessível?
+    spring.kafka.bootstrap-servers configurado corretamente
 ```
 
 ---
@@ -1403,7 +1404,7 @@ public class OSCriadaEvent extends DomainEvent {
 publisher.publish(new OSCriadaEvent(os.getId(), ...));
 
 // Consumir
-@SqsListener("queue-name")
+@KafkaListener(topics = "os-events", groupId = "service-group")
 public void handle(OSCriadaEvent event) { ... }
 ```
 

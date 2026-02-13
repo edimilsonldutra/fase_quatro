@@ -5,14 +5,13 @@ import br.com.grupo99.catalogo.application.dto.PecaResponseDTO;
 import br.com.grupo99.catalogo.domain.model.Peca;
 import br.com.grupo99.catalogo.domain.repository.PecaRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Application Service para Peça.
- * Migrado para MongoDB/DocumentDB - ID agora é String.
+ * Migrado para DynamoDB - ID é String (UUID).
  */
 @Service
 public class PecaApplicationService {
@@ -22,7 +21,6 @@ public class PecaApplicationService {
         this.pecaRepository = pecaRepository;
     }
 
-    @Transactional
     public PecaResponseDTO criarPeca(PecaRequestDTO request) {
         Peca peca = new Peca(
                 request.getNome(),
@@ -37,14 +35,12 @@ public class PecaApplicationService {
         return PecaResponseDTO.fromDomain(peca);
     }
 
-    @Transactional(readOnly = true)
     public PecaResponseDTO buscarPorId(String id) {
         Peca peca = pecaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Peça não encontrada com ID: " + id));
         return PecaResponseDTO.fromDomain(peca);
     }
 
-    @Transactional(readOnly = true)
     public List<PecaResponseDTO> listarTodas() {
         return pecaRepository.findAll()
                 .stream()
@@ -52,7 +48,6 @@ public class PecaApplicationService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
     public List<PecaResponseDTO> listarAtivas() {
         return pecaRepository.findByAtivoTrueOrderByNomeAsc()
                 .stream()
@@ -60,7 +55,6 @@ public class PecaApplicationService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
     public PecaResponseDTO atualizar(String id, PecaRequestDTO request) {
         Peca peca = pecaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Peça não encontrada com ID: " + id));
@@ -78,7 +72,6 @@ public class PecaApplicationService {
         return PecaResponseDTO.fromDomain(peca);
     }
 
-    @Transactional
     public void desativar(String id) {
         Peca peca = pecaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Peça não encontrada com ID: " + id));
@@ -86,7 +79,6 @@ public class PecaApplicationService {
         pecaRepository.save(peca);
     }
 
-    @Transactional
     public void deletar(String id) {
         if (!pecaRepository.existsById(id)) {
             throw new RuntimeException("Peça não encontrada com ID: " + id);
@@ -94,7 +86,6 @@ public class PecaApplicationService {
         pecaRepository.deleteById(id);
     }
 
-    @Transactional
     public void decrementarEstoque(String id, Integer quantidade) {
         Peca peca = pecaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Peça não encontrada com ID: " + id));
@@ -102,7 +93,6 @@ public class PecaApplicationService {
         pecaRepository.save(peca);
     }
 
-    @Transactional
     public void incrementarEstoque(String id, Integer quantidade) {
         Peca peca = pecaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Peça não encontrada com ID: " + id));
@@ -110,7 +100,6 @@ public class PecaApplicationService {
         pecaRepository.save(peca);
     }
 
-    @Transactional(readOnly = true)
     public List<PecaResponseDTO> buscarPorCategoria(String categoria) {
         return pecaRepository.findByCategoria(categoria)
                 .stream()
@@ -118,7 +107,6 @@ public class PecaApplicationService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
     public List<PecaResponseDTO> buscarPorMarca(String marca) {
         return pecaRepository.findByMarca(marca)
                 .stream()

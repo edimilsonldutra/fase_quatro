@@ -84,8 +84,8 @@ DELETE /api/v1/ordens-servico/{id}
 - `StatusOrcamento` (PENDENTE, APROVADO, REJEITADO)
 - `StatusPagamento` (AGUARDANDO, PAGO, CANCELADO)
 
-**Banco de Dados:** MongoDB (NoSQL)
-- **Justificativa:** Flexibilidade para armazenar estruturas variáveis de orçamentos, histórico de aprovações e documentos de pagamento em formato JSON/BSON
+**Banco de Dados:** DynamoDB (NoSQL)
+- **Justificativa:** Flexibilidade para armazenar estruturas variáveis de orçamentos, histórico de aprovações e documentos de pagamento. Custo beneficiado pelo Free Tier da AWS
 
 **Eventos Consumidos (Kafka):**
 - `OSCriadaEvent` (topic: os-events) → Gera orçamento inicial
@@ -133,14 +133,14 @@ GET    /api/v1/pagamentos/{id}
 - `Mecanico` (referência)
 - `StatusExecucao` (AGUARDANDO, EM_DIAGNOSTICO, EM_REPARO, FINALIZADO)
 
-**Banco de Dados:** PostgreSQL (relacional)
+**Banco de Dados:** PostgreSQL 16.3 (RDS)
 - **Justificativa:** Necessidade de transações ACID para controle de estoque de peças e atribuição de tarefas
 
-**Eventos Consumidos (SQS):**
+**Eventos Consumidos (Kafka):**
 - `OrcamentoAprovadoEvent` → Inicia execução
 - `PagamentoConfirmadoEvent` → Libera para execução
 
-**Eventos Publicados (SQS):**
+**Eventos Publicados (Kafka):**
 - `ExecucaoIniciadaEvent`
 - `DiagnosticoConcluidoEvent`
 - `ReparoConcluidoEvent`
@@ -237,7 +237,7 @@ Execution Service: EstoqueInsuficienteEvent
 | Microsserviço | Banco de Dados | Justificativa |
 |---------------|----------------|---------------|
 | **OS Service** | PostgreSQL | • Transações ACID para mudanças de status<br>• Relacionamentos fortes (Cliente, Veículo)<br>• Histórico auditável |
-| **Billing Service** | MongoDB | • Flexibilidade para estruturas variáveis de orçamento<br>• Armazenamento de documentos JSON complexos<br>• Escalabilidade horizontal |
+| **Billing Service** | DynamoDB | • Flexibilidade para estruturas variáveis de orçamento<br>• Armazenamento de documentos NoSQL<br>• Free Tier da AWS, custo reduzido |
 | **Execution Service** | PostgreSQL | • Controle transacional de estoque<br>• Integridade referencial (Mecânicos, Peças)<br>• ACID para movimentações de estoque |
 
 ### Separação de Dados
@@ -253,7 +253,7 @@ Execution Service: EstoqueInsuficienteEvent
 Monolito (PostgreSQL único)
   ├─ pessoas, clientes, veiculos → OS Service DB
   ├─ ordem_servico, status_os → OS Service DB
-  ├─ orcamentos, pagamentos → Billing Service DB (migração para MongoDB)
+  ├─ orcamentos, pagamentos → Billing Service DB (migração para DynamoDB)
   └─ execucoes, pecas, estoque → Execution Service DB
 ```
 
@@ -274,24 +274,26 @@ GET /api/v1/ordens-servico/{id}
 → Resposta imediata com dados da OS
 ```
 
-### Comunicação Assíncrona (AWS SQS)
+### Comunicação Assíncrona (Apache Kafka)
 
 **Quando usar:**
 - Comandos que iniciam processos de negócio
 - Eventos que notificam mudanças de estado
 - Operações que não exigem resposta imediata
 
-**Configuração SQS:**
+**Configuração Kafka:**
 ```yaml
-Filas:
-  - os-events-queue (para Billing e Execution escutarem)
-  - billing-events-queue (para OS e Execution escutarem)
-  - execution-events-queue (para OS e Billing escutarem)
+Tópicos:
+  - os-events (para Billing e Execution escutarem)
+  - billing-events (para OS e Execution escutarem)
+  - execution-events (para OS e Billing escutarem)
+  - compensacao-events (para rollback da Saga)
   
 Características:
-  - Visibility Timeout: 30 segundos
-  - Message Retention: 4 dias
-  - Dead Letter Queue: Após 3 tentativas
+  - Partições: 3
+  - Replicação: 3
+  - Retenção: 7 dias
+  - Consumer Groups: por serviço
 ```
 
 **Formato de Mensagem:**
@@ -339,17 +341,17 @@ Características:
       │            │            │              │
       ▼            ▼            ▼              │
 ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│PostgreSQL│ │ MongoDB  │ │PostgreSQL│       │
-│  (RDS)   │ │(DocumentDB│  (RDS)   │       │
-│          │ │   /Atlas)│ │          │       │
+│PostgreSQL│ │ DynamoDB │ │PostgreSQL│       │
+│  (RDS)   │ │  (NoSQL) │ │  (RDS)   │       │
+│          │ │          │ │          │       │
 └──────────┘ └──────────┘ └──────────┘       │
                                                │
       ┌────────────────────────────────────────┘
       │
       ▼
 ┌─────────────────┐
-│   AWS SQS       │
-│ (3 filas)       │
+│  Apache Kafka   │
+│  (4 tópicos)    │
 └─────────────────┘
 ```
 
@@ -359,9 +361,9 @@ Características:
 |------------|-------------|--------------|
 | **Kubernetes** | Amazon EKS | • 3 node groups (1 por serviço)<br>• Auto-scaling habilitado |
 | **OS Service DB** | RDS PostgreSQL | • db.t3.medium<br>• Multi-AZ para produção |
-| **Billing Service DB** | DocumentDB | • MongoDB-compatible<br>• 3 réplicas |
+| **Billing Service DB** | DynamoDB | • NoSQL gerenciado<br>• Free Tier • On-demand capacity |
 | **Execution Service DB** | RDS PostgreSQL | • db.t3.medium<br>• Multi-AZ |
-| **Mensageria** | AWS SQS | • 3 filas Standard<br>• 3 DLQs |
+| **Mensageria** | Apache Kafka | • 4 tópicos<br>• Event-driven |
 | **API Gateway** | AWS API Gateway | • Rate limiting<br>• Autenticação JWT |
 | **Observabilidade** | New Relic + CloudWatch | • APM em todos os serviços<br>• Logs centralizados |
 | **Secrets** | AWS Secrets Manager | • Credenciais de banco<br>• Chaves API |
@@ -470,7 +472,7 @@ main branch:
 - Rastreamento de requisições entre microsserviços
 - Identificação de gargalos
 - Análise de latência end-to-end
-- Exemplo: `POST /ordens-servico` → evento SQS → Billing Service
+- Exemplo: `POST /ordens-servico` → evento Kafka → Billing Service
 
 #### 4. **Alertas**
 
@@ -478,7 +480,7 @@ main branch:
 Alertas Críticos:
   - Taxa de erro > 5% (5 minutos)
   - Latência p95 > 2 segundos
-  - Fila SQS com > 1000 mensagens
+  - Consumer lag Kafka > 1000 mensagens
   - Pods em CrashLoopBackOff
   
 Canal: PagerDuty → Slack → Email
@@ -510,7 +512,7 @@ Canal: PagerDuty → Slack → Email
 
 #### Testes de Integração
 - Teste com bancos de dados reais (Testcontainers)
-- Teste de publicação/consumo de eventos SQS (LocalStack)
+- Teste de publicação/consumo de eventos Kafka (Embedded Kafka)
 - Spring Boot Test
 
 #### Testes BDD (Behavior-Driven Development)
@@ -560,7 +562,7 @@ http://<service>/v3/api-docs
 
 ### Contratos de Eventos (AsyncAPI)
 
-Documentação de eventos SQS em formato AsyncAPI 2.0
+Documentação de eventos Kafka em formato AsyncAPI 2.0
 
 ---
 
@@ -594,15 +596,16 @@ Documentação de eventos SQS em formato AsyncAPI 2.0
 
 ---
 
-### ADR-002: MongoDB para Billing Service
+### ADR-002: DynamoDB para Billing Service
 
 **Contexto:** Billing Service precisa armazenar orçamentos com estruturas variáveis
 
-**Decisão:** Usar MongoDB (NoSQL) ao invés de PostgreSQL
+**Decisão:** Usar DynamoDB (NoSQL) ao invés de PostgreSQL
 
 **Consequências:**
 - ✅ Flexibilidade para estruturas de orçamento dinâmicas
-- ✅ Facilita versionamento de documentos
+- ✅ Free Tier da AWS - custo reduzido
+- ✅ Escalabilidade automática sem gerenciamento de cluster
 - ❌ Ausência de transactions distribuídas (mitigado por Saga)
 
 ---
@@ -632,7 +635,7 @@ Documentação de eventos SQS em formato AsyncAPI 2.0
 - [ ] Implementação do OS Service
 - [ ] Implementação do Billing Service
 - [ ] Implementação do Execution Service
-- [ ] Integração via SQS
+- [ ] Integração via Kafka
 
 ### Fase 3: Qualidade (Semana 7)
 - [ ] Testes unitários (80%+ cobertura)

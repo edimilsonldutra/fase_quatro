@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PagamentoEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">billing-service</a> &gt; <a href="index.source.html" class="el_package">br.com.grupo99.billingservice.infrastructure.persistence.entity</a> &gt; <span class="el_source">PagamentoEntity.java</span></div><h1>PagamentoEntity.java</h1><pre class="source lang-java linenums">package br.com.grupo99.billingservice.infrastructure.persistence.entity;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+/**
+ * Entity DynamoDB para Pagamento
+ * 
+ * ✅ CLEAN ARCHITECTURE: Entity fica na infrastructure layer
+ * Migrado de MongoDB (@Document) para DynamoDB (@DynamoDbBean)
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@DynamoDbBean
+public class PagamentoEntity {
+
+    private String id;
+
+    private String orcamentoId;
+
+    private String osId;
+
+    @Builder.Default
+    private String status = &quot;PENDENTE&quot;;
+
+    private BigDecimal valor;
+
+    private String formaPagamento;
+
+    private String comprovante;
+
+    private Instant dataPagamento;
+
+    private Instant dataEstorno;
+
+    private String motivoEstorno;
+
+    private Instant createdAt;
+
+    private Instant updatedAt;
+
+    @DynamoDbPartitionKey
+    public String getId() {
+<span class="nc" id="L53">        return this.id;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

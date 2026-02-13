@@ -1,11 +1,7 @@
 package br.com.grupo99.catalogo.domain.model;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
-import org.springframework.data.mongodb.core.index.Indexed;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,52 +9,37 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Documento MongoDB para Serviço.
+ * Model DynamoDB para Serviço.
  * 
- * Migrado de JPA/PostgreSQL para MongoDB/DocumentDB para:
- * - Schema flexível
- * - Melhor performance em leituras de catálogo
- * - Suporte nativo a campos aninhados e arrays
+ * Migrado de MongoDB/DocumentDB para DynamoDB:
+ * - Schema flexível via listas
+ * - Alta performance e escalabilidade
+ * - Free Tier da AWS
  */
-@Document(collection = "servicos")
+@DynamoDbBean
 public class Servico {
 
-    @Id
     private String id;
 
-    @Field("nome")
-    @Indexed
     private String nome;
 
-    @Field("descricao")
     private String descricao;
 
-    @Field("preco")
     private BigDecimal preco;
 
-    @Field("tempo_estimado_minutos")
     private Integer tempoEstimadoMinutos;
 
-    @Field("ativo")
-    @Indexed
     private Boolean ativo = true;
 
-    // Campos flexíveis para MongoDB - aproveitando schema-less
-    @Field("categorias")
+    // Campos flexíveis - armazenados nativamente no DynamoDB
     private List<String> categorias;
 
-    @Field("pecas_necessarias")
     private List<String> pecasNecessarias;
 
-    @Field("requisitos")
     private List<String> requisitos;
 
-    @CreatedDate
-    @Field("created_at")
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Field("updated_at")
     private LocalDateTime updatedAt;
 
     public Servico() {
@@ -75,6 +56,7 @@ public class Servico {
     }
 
     // Getters e Setters
+    @DynamoDbPartitionKey
     public String getId() {
         return id;
     }

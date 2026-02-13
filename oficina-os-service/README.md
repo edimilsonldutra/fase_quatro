@@ -3,7 +3,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.13-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk)](https://openjdk.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
-[![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazon-aws)](https://aws.amazon.com/sqs/)
+[![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-3.7.2-231F20?logo=apachekafka)](https://kafka.apache.org/)
 
 Microsserviço responsável por gerenciar o ciclo de vida das ordens de serviço em uma oficina mecânica.
 
@@ -14,7 +14,7 @@ Microsserviço responsável por gerenciar o ciclo de vida das ordens de serviço
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
 - [APIs REST](#apis-rest)
-- [Eventos (SQS)](#eventos-sqs)
+- [Eventos (Kafka)](#eventos-kafka)
 - [Banco de Dados](#banco-de-dados)
 - [Configuração](#configuração)
 - [Deploy](#deploy)
@@ -51,7 +51,7 @@ Este serviço representa o **bounded context "Gestão de Ordens de Serviço"** n
 ```
 ┌─────────────────────────────────────────┐
 │        Infrastructure Layer             │
-│  (REST Controllers, SQS Listeners,      │
+│  (REST Controllers, Kafka Listeners,     │
 │   JPA Repositories, Configs)            │
 └──────────────┬──────────────────────────┘
                │
@@ -104,7 +104,7 @@ oficina-os-service/
 │   │   │   │   └── gateway/
 │   │   │   │       ├── EventPublisherGateway.java
 │   │   │   │       └── impl/
-│   │   │   │           └── SqsEventPublisherGateway.java
+│   │   │   │           └── KafkaEventPublisherGateway.java
 │   │   │   └── infrastructure/            # Camada de Infraestrutura
 │   │   │       ├── rest/
 │   │   │       │   └── OrdemServicoRestController.java
@@ -120,7 +120,7 @@ oficina-os-service/
 │   │   │       │   └── repository/
 │   │   │       │       └── OrdemServicoRepositoryImpl.java
 │   │   │       ├── config/
-│   │   │       │   ├── AwsSqsConfig.java
+│   │   │       │   ├── KafkaConfig.java
 │   │   │       │   └── DatabaseConfig.java
 │   │   │       └── exception/
 │   │   │           └── GlobalExceptionHandler.java
@@ -153,7 +153,7 @@ oficina-os-service/
 │   └── secret.yaml
 ├── terraform/
 │   ├── rds.tf
-│   ├── sqs.tf
+│   ├── kafka.tf
 │   └── variables.tf
 ├── .github/
 │   └── workflows/
@@ -173,7 +173,7 @@ oficina-os-service/
 | **Framework** | Spring Boot | 3.3.13 | Framework moderno e produtivo |
 | **Linguagem** | Java | 21 | LTS com virtual threads |
 | **Banco de Dados** | PostgreSQL | 16 | ACID, relacionamentos fortes |
-| **Mensageria** | AWS SQS | - | Comunicação assíncrona |
+| **Mensageria** | Apache Kafka | 3.7.2 | Comunicação assíncrona (Event-Driven) |
 | **ORM** | Spring Data JPA | - | Simplifica acesso a dados |
 | **Migração DB** | Flyway | - | Versionamento de schema |
 | **Observabilidade** | New Relic APM | - | Monitoramento e tracing |
@@ -337,7 +337,7 @@ Authorization: Bearer <JWT>
 
 ---
 
-## 📨 Eventos (SQS)
+## 📨 Eventos (Kafka)
 
 ### Eventos Publicados
 
@@ -345,7 +345,7 @@ Authorization: Bearer <JWT>
 
 Publicado quando uma nova OS é criada.
 
-**Fila:** `os-events-queue`
+**Tópico:** `os-events`
 
 **Payload:**
 ```json
@@ -374,7 +374,7 @@ Publicado quando uma nova OS é criada.
 
 Publicado quando o status da OS muda.
 
-**Fila:** `os-events-queue`
+**Tópico:** `os-events`
 
 **Payload:**
 ```json
@@ -398,7 +398,7 @@ Publicado quando o status da OS muda.
 
 Publicado quando a OS é finalizada.
 
-**Fila:** `os-events-queue`
+**Tópico:** `os-events`
 
 **Payload:**
 ```json
@@ -422,7 +422,7 @@ Publicado quando a OS é finalizada.
 
 Publicado quando a OS é cancelada.
 
-**Fila:** `os-events-queue`
+**Tópico:** `os-events`
 
 **Payload:**
 ```json
@@ -447,7 +447,7 @@ Publicado quando a OS é cancelada.
 
 Atualiza status da OS para `EM_EXECUCAO`.
 
-**Fila consumida:** `execution-events-queue`
+**Tópico consumido:** `execution-events`
 
 ---
 
@@ -455,7 +455,7 @@ Atualiza status da OS para `EM_EXECUCAO`.
 
 Atualiza status da OS para `FINALIZADA`.
 
-**Fila consumida:** `execution-events-queue`
+**Tópico consumido:** `execution-events`
 
 ---
 
@@ -463,7 +463,7 @@ Atualiza status da OS para `FINALIZADA`.
 
 Atualiza status da OS para indicar que o pagamento foi realizado.
 
-**Fila consumida:** `billing-events-queue`
+**Tópico consumido:** `billing-events`
 
 ---
 
@@ -532,11 +532,11 @@ DB_NAME: osservice_db
 DB_USERNAME: <from-secrets-manager>
 DB_PASSWORD: <from-secrets-manager>
 
-# AWS SQS
-AWS_REGION: us-east-1
-OS_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/os-events-queue
-EXECUTION_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/execution-events-queue
-BILLING_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/billing-events-queue
+# Apache Kafka
+KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+KAFKA_TOPIC_OS_EVENTS: os-events
+KAFKA_TOPIC_EXECUTION_EVENTS: execution-events
+KAFKA_TOPIC_BILLING_EVENTS: billing-events
 
 # Spring Profiles
 SPRING_PROFILES_ACTIVE: prod
@@ -568,13 +568,14 @@ spring:
     show-sql: false
   flyway:
     enabled: true
-
-aws:
-  region: ${AWS_REGION}
-  sqs:
-    os-events-queue: ${OS_EVENTS_QUEUE_URL}
-    execution-events-queue: ${EXECUTION_EVENTS_QUEUE_URL}
-    billing-events-queue: ${BILLING_EVENTS_QUEUE_URL}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: os-service
+      auto-offset-reset: earliest
 
 server:
   port: 8081

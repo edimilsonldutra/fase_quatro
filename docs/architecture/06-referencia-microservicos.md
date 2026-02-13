@@ -29,8 +29,8 @@
 │                                                             │
 │ 4. tech_challenge_db_infra (Infraestrutura de Dados)       │
 │    ├─ RDS PostgreSQL 16.3                                  │
-│    ├─ DocumentDB/MongoDB                                   │
-│    ├─ AWS SQS FIFO (9 Queues)                              │
+│    ├─ Amazon DynamoDB                                      │
+│    ├─ Apache Kafka 3.7.2 (Saga) + AWS SQS (auxiliares)     │
 │    └─ VPC & Security Groups                                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -45,9 +45,9 @@
 | 1 | Customer Service | 8081 | PostgreSQL | Completo (SQS) | 19/19 ✅ | PROD |
 | 2 | People Service | 8082 | PostgreSQL | Completo (SQS) | 8/8 ✅ | PROD |
 | 3 | HR Service | 8083 | PostgreSQL | Completo (SQS) | ✅ | PROD |
-| 4 | Billing Service | 8084 | MongoDB | Completo (SQS) | ✅ | PROD |
-| 5 | Execution Service | 8085 | PostgreSQL | Completo (SQS) | ✅ | PROD |
-| 6 | OS Service | 8086 | PostgreSQL | Completo (SQS) | ✅ | PROD |
+| 4 | Billing Service | 8084 | DynamoDB | Completo (Kafka) | ✅ | PROD |
+| 5 | Execution Service | 8085 | PostgreSQL | Completo (Kafka) | ✅ | PROD |
+| 6 | OS Service | 8086 | PostgreSQL | Completo (Kafka) | ✅ | PROD |
 | 7 | Maintenance Service | 8087 | PostgreSQL | Básico (Events) | ✅ | PROD |
 | 8 | Notification Service | 8088 | PostgreSQL | Básico (Events) | ✅ | PROD |
 | 9 | Operations Service | 8089 | PostgreSQL | Básico (Events) | ✅ | PROD |
@@ -107,8 +107,8 @@ Eventos Publicados:
 └─ FaturaVencidaEvent
    └─ Consumido por: Notification, Operations
 
-Fila SQS: billing-events-queue.fifo
-Banco: MongoDB
+Tópico Kafka: billing-events
+Banco: DynamoDB
 Compilação: ✅ OK
 Testes: ✅ PASS
 ```
@@ -123,7 +123,7 @@ Eventos Publicados:
 └─ ExecutorTrocadoEvent
    └─ Consumido por: HR, Operations
 
-Fila SQS: execution-events-queue.fifo
+Tópico Kafka: execution-events
 Compilação: ✅ OK
 Testes: ✅ PASS
 ```
@@ -138,7 +138,7 @@ Eventos Publicados:
 └─ OrdemCanceladaEvent
    └─ Consumido por: Execution, Notification
 
-Fila SQS: os-events-queue.fifo
+Tópico Kafka: os-events
 Compilação: ✅ OK
 Testes: ✅ PASS
 ```
@@ -192,8 +192,8 @@ Testes: ✅ PASS
 | **Spring Boot** | 3.3.13 |
 | **Build Tool** | Maven 3.x |
 | **ORM** | Hibernate/Spring Data JPA |
-| **Banco Dados** | PostgreSQL 16.3 / MongoDB |
-| **Message Queue** | AWS SQS FIFO |
+| **Banco Dados** | PostgreSQL 16.3 / DynamoDB |
+| **Message Broker** | Apache Kafka 3.7.2 (Saga) + AWS SQS (auxiliares) |
 | **Containerização** | Docker + ECR |
 | **Orquestração** | Kubernetes 1.29 (EKS) |
 | **Observabilidade** | New Relic (APM + Logs) |

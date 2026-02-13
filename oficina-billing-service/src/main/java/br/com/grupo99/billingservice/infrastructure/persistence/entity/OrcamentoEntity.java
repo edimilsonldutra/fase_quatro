@@ -4,31 +4,29 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
- * Entity MongoDB para Orcamento
+ * Entity DynamoDB para Orcamento
  * 
  * ✅ CLEAN ARCHITECTURE: Entity fica na infrastructure layer
- * Domain models não conhecem JPA/MongoDB
+ * Domain models não conhecem detalhes de persistência
+ * 
+ * Migrado de MongoDB (@Document) para DynamoDB (@DynamoDbBean)
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "orcamentos")
+@DynamoDbBean
 public class OrcamentoEntity {
 
-    @Id
     private String id;
 
     private String osId;
@@ -54,19 +52,23 @@ public class OrcamentoEntity {
     @Builder.Default
     private List<HistoricoStatusEntity> historico = new ArrayList<>();
 
-    @CreatedDate
     private Instant createdAt;
 
-    @LastModifiedDate
     private Instant updatedAt;
 
+    @DynamoDbPartitionKey
+    public String getId() {
+        return this.id;
+    }
+
     /**
-     * Item do Orcamento (nested)
+     * Item do Orcamento (nested DynamoDbBean)
      */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @DynamoDbBean
     public static class ItemOrcamentoEntity {
         private String tipo;
         private String descricao;
@@ -76,12 +78,13 @@ public class OrcamentoEntity {
     }
 
     /**
-     * Histórico de status (nested)
+     * Histórico de status (nested DynamoDbBean)
      */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @DynamoDbBean
     public static class HistoricoStatusEntity {
         private String statusAnterior;
         private String novoStatus;

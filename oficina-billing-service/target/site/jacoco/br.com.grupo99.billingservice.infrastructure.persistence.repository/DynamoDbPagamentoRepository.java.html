@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DynamoDbPagamentoRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">billing-service</a> &gt; <a href="index.source.html" class="el_package">br.com.grupo99.billingservice.infrastructure.persistence.repository</a> &gt; <span class="el_source">DynamoDbPagamentoRepository.java</span></div><h1>DynamoDbPagamentoRepository.java</h1><pre class="source lang-java linenums">package br.com.grupo99.billingservice.infrastructure.persistence.repository;
+
+import br.com.grupo99.billingservice.infrastructure.persistence.entity.PagamentoEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Repository;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * DynamoDB Repository para PagamentoEntity.
+ *
+ * ✅ CLEAN ARCHITECTURE: Repository específico do DynamoDB fica na
+ * infrastructure
+ * Substitui MongoPagamentoRepository (Spring Data MongoDB)
+ */
+@Repository
+public class DynamoDbPagamentoRepository {
+
+<span class="fc" id="L32">    private static final Logger log = LoggerFactory.getLogger(DynamoDbPagamentoRepository.class);</span>
+    private final DynamoDbTable&lt;PagamentoEntity&gt; table;
+
+    public DynamoDbPagamentoRepository(
+            DynamoDbEnhancedClient enhancedClient,
+<span class="fc" id="L37">            @Value(&quot;${aws.dynamodb.table-prefix:}&quot;) String tablePrefix) {</span>
+<span class="pc bpc" id="L38" title="1 of 4 branches missed.">        String tableName = (tablePrefix != null &amp;&amp; !tablePrefix.isBlank())</span>
+<span class="fc" id="L39">                ? tablePrefix + &quot;pagamentos&quot;</span>
+<span class="fc" id="L40">                : &quot;pagamentos&quot;;</span>
+<span class="fc" id="L41">        this.table = enhancedClient.table(tableName, TableSchema.fromBean(PagamentoEntity.class));</span>
+<span class="fc" id="L42">    }</span>
+
+    /**
+     * Salva ou atualiza um PagamentoEntity.
+     * Gera ID e timestamps automaticamente.
+     */
+    public PagamentoEntity save(PagamentoEntity entity) {
+<span class="nc bnc" id="L49" title="All 4 branches missed.">        if (entity.getId() == null || entity.getId().isBlank()) {</span>
+<span class="nc" id="L50">            entity.setId(UUID.randomUUID().toString());</span>
+        }
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (entity.getCreatedAt() == null) {</span>
+<span class="nc" id="L53">            entity.setCreatedAt(Instant.now());</span>
+        }
+<span class="nc" id="L55">        entity.setUpdatedAt(Instant.now());</span>
+
+<span class="nc" id="L57">        table.putItem(entity);</span>
+<span class="nc" id="L58">        log.debug(&quot;PagamentoEntity salvo: {}&quot;, entity.getId());</span>
+<span class="nc" id="L59">        return entity;</span>
+    }
+
+    /**
+     * Busca PagamentoEntity por ID (partition key).
+     */
+    public Optional&lt;PagamentoEntity&gt; findById(String id) {
+<span class="nc" id="L66">        PagamentoEntity entity = table.getItem(Key.builder().partitionValue(id).build());</span>
+<span class="nc" id="L67">        return Optional.ofNullable(entity);</span>
+    }
+
+    /**
+     * Busca PagamentoEntity por orcamentoId (scan com filtro).
+     */
+    public Optional&lt;PagamentoEntity&gt; findByOrcamentoId(String orcamentoId) {
+<span class="nc" id="L74">        ScanEnhancedRequest request = ScanEnhancedRequest.builder()</span>
+<span class="nc" id="L75">                .filterExpression(Expression.builder()</span>
+<span class="nc" id="L76">                        .expression(&quot;orcamentoId = :orcamentoId&quot;)</span>
+<span class="nc" id="L77">                        .putExpressionValue(&quot;:orcamentoId&quot;, AttributeValue.builder().s(orcamentoId).build())</span>
+<span class="nc" id="L78">                        .build())</span>
+<span class="nc" id="L79">                .build();</span>
+
+<span class="nc" id="L81">        return table.scan(request).items().stream().findFirst();</span>
+    }
+
+    /**
+     * Busca PagamentoEntities por osId (scan com filtro).
+     */
+    public List&lt;PagamentoEntity&gt; findByOsId(String osId) {
+<span class="nc" id="L88">        ScanEnhancedRequest request = ScanEnhancedRequest.builder()</span>
+<span class="nc" id="L89">                .filterExpression(Expression.builder()</span>
+<span class="nc" id="L90">                        .expression(&quot;osId = :osId&quot;)</span>
+<span class="nc" id="L91">                        .putExpressionValue(&quot;:osId&quot;, AttributeValue.builder().s(osId).build())</span>
+<span class="nc" id="L92">                        .build())</span>
+<span class="nc" id="L93">                .build();</span>
+
+<span class="nc" id="L95">        return table.scan(request).items().stream().collect(Collectors.toList());</span>
+    }
+
+    /**
+     * Busca PagamentoEntities por status (scan com filtro).
+     */
+    public List&lt;PagamentoEntity&gt; findByStatus(String status) {
+<span class="nc" id="L102">        ScanEnhancedRequest request = ScanEnhancedRequest.builder()</span>
+<span class="nc" id="L103">                .filterExpression(Expression.builder()</span>
+<span class="nc" id="L104">                        .expression(&quot;#st = :status&quot;)</span>
+<span class="nc" id="L105">                        .putExpressionName(&quot;#st&quot;, &quot;status&quot;)</span>
+<span class="nc" id="L106">                        .putExpressionValue(&quot;:status&quot;, AttributeValue.builder().s(status).build())</span>
+<span class="nc" id="L107">                        .build())</span>
+<span class="nc" id="L108">                .build();</span>
+
+<span class="nc" id="L110">        return table.scan(request).items().stream().collect(Collectors.toList());</span>
+    }
+
+    /**
+     * Verifica se existe PagamentoEntity com orcamentoId e status específicos.
+     */
+    public boolean existsByOrcamentoIdAndStatus(String orcamentoId, String status) {
+<span class="nc" id="L117">        ScanEnhancedRequest request = ScanEnhancedRequest.builder()</span>
+<span class="nc" id="L118">                .filterExpression(Expression.builder()</span>
+<span class="nc" id="L119">                        .expression(&quot;orcamentoId = :orcamentoId AND #st = :status&quot;)</span>
+<span class="nc" id="L120">                        .putExpressionName(&quot;#st&quot;, &quot;status&quot;)</span>
+<span class="nc" id="L121">                        .putExpressionValue(&quot;:orcamentoId&quot;, AttributeValue.builder().s(orcamentoId).build())</span>
+<span class="nc" id="L122">                        .putExpressionValue(&quot;:status&quot;, AttributeValue.builder().s(status).build())</span>
+<span class="nc" id="L123">                        .build())</span>
+<span class="nc" id="L124">                .build();</span>
+
+<span class="nc" id="L126">        return table.scan(request).items().stream().findFirst().isPresent();</span>
+    }
+
+    /**
+     * Deleta PagamentoEntity por ID.
+     */
+    public void deleteById(String id) {
+<span class="nc" id="L133">        table.deleteItem(Key.builder().partitionValue(id).build());</span>
+<span class="nc" id="L134">        log.debug(&quot;PagamentoEntity deletado: {}&quot;, id);</span>
+<span class="nc" id="L135">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

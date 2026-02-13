@@ -82,7 +82,7 @@ Baseado em **Domain-Driven Design (DDD)**, identificamos 3 **Bounded Contexts**:
 - `PUT /api/v1/orcamentos/{id}/aprovar` - Aprovar orçamento
 - `POST /api/v1/pagamentos` - Processar pagamento
 
-**Banco de Dados**: MongoDB (schema flexível para itens variáveis)
+**Banco de Dados**: DynamoDB (schema flexível, Free Tier AWS)
 
 #### 3. Execution Service (Execução)
 **Responsabilidade**: Diagnósticos, tarefas, peças e progresso
@@ -103,8 +103,8 @@ Baseado em **Domain-Driven Design (DDD)**, identificamos 3 **Bounded Contexts**:
 ### Comunicação entre Serviços
 
 - **Síncrona**: REST APIs para consultas diretas
-- **Assíncrona**: Amazon SQS para eventos e notificações
-- **Filas**:
+- **Assíncrona**: Apache Kafka para eventos (Saga) + SQS (auxiliares)
+- **Tópicos/Filas**:
   - `os-events-queue`
   - `billing-events-queue`
   - `execution-events-queue`
@@ -114,8 +114,8 @@ Baseado em **Domain-Driven Design (DDD)**, identificamos 3 **Bounded Contexts**:
 | Componente | Tecnologia |
 |------------|------------|
 | **Orquestração** | Amazon EKS (Kubernetes 1.29) |
-| **Bancos de Dados** | RDS PostgreSQL 16.3 (OS, Execution), MongoDB (Billing) |
-| **Mensageria** | Amazon SQS |
+| **Bancos de Dados** | RDS PostgreSQL 16.3 (OS, Execution), DynamoDB (Billing) |
+| **Mensageria** | Apache Kafka (Saga) + Amazon SQS (auxiliares) |
 | **Autenticação** | AWS Lambda (compartilhada) |
 | **CI/CD** | GitHub Actions (pipelines independentes) |
 | **Observabilidade** | New Relic APM + Distributed Tracing |
@@ -151,7 +151,7 @@ resources:
 ### 3. Tecnologias Adequadas ✅
 
 - **PostgreSQL** para OS e Execution (relacional)
-- **MongoDB** para Billing (flexibilidade de schema)
+- **DynamoDB** para Billing (flexibilidade de schema)
 - Cada equipe escolhe ferramentas mais adequadas
 
 ### 4. Desenvolvimento Paralelo ✅
@@ -197,7 +197,7 @@ resources:
 | Desafio | Mitigação |
 |---------|-----------|
 | Chamadas cross-service | Cache de dados frequentes |
-| SQS overhead | Long polling (20s) |
+| Kafka overhead | Consumer group rebalancing |
 | Distributed tracing overhead | Sampling de 10% se necessário |
 
 ### 4. Curva de Aprendizado
@@ -223,7 +223,7 @@ resources:
 - ✅ Migrar schemas de banco de dados
 
 ### Fase 3: Integração (Semana 7-8)
-- ✅ Implementar comunicação via SQS
+- ✅ Implementar comunicação via Apache Kafka (Saga)
 - ✅ Configurar New Relic Distributed Tracing
 - ✅ Testes de integração end-to-end
 - ✅ Load testing
@@ -261,8 +261,8 @@ Se problemas críticos forem identificados:
 | **EKS** | $73 | $73 | $0 |
 | **EC2 Nodes** | $150 (3 nodes) | $200 (4 nodes) | +$50 |
 | **RDS PostgreSQL** | $100 (1 instância) | $200 (2 instâncias) | +$100 |
-| **MongoDB** | - | $80 | +$80 |
-| **SQS** | - | $10 | +$10 |
+| **DynamoDB** | - | $80 | +$80 |
+| **Kafka (MSK)** | - | $15 | +$15 |
 | **New Relic** | $100 | $150 | +$50 |
 | **Total** | **$423** | **$713** | **+$290** |
 

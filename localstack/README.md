@@ -24,11 +24,14 @@ docker-compose -f docker-compose.localstack.yml up -d
 docker-compose -f docker-compose.localstack.yml ps
 ```
 
-### 3. Verificar as filas SQS criadas
+### 3. Verificar as filas SQS e tópicos Kafka criados
 
 ```bash
-# Usando AWS CLI com LocalStack
+# Listar filas SQS (serviços auxiliares: Customer, People, HR, Catalog, Maintenance, Notification, Operations)
 aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1
+
+# Os serviços da Saga (OS, Billing, Execution) utilizam Apache Kafka.
+# Para verificar os tópicos Kafka, use os comandos do Kafka CLI ou o Kafka UI.
 
 # Ou acesse o dashboard do LocalStack
 # http://localhost:4566/_localstack/extensions/ui
@@ -44,8 +47,7 @@ aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1
 # Usuário: postgres
 # Senha: postgres
 
-# Acessar Mongo Express (MongoDB)
-# http://localhost:8091
+# DynamoDB Local é acessível via AWS CLI com endpoint http://localhost:4566
 ```
 
 ## 📦 Serviços Disponíveis
@@ -54,19 +56,27 @@ aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1
 |---------|-------|-----|
 | LocalStack | 4566 | http://localhost:4566 |
 | PostgreSQL | 5432 | jdbc:postgresql://localhost:5432/db_name |
-| MongoDB | 27017 | mongodb://localhost:27017 |
+| DynamoDB Local | 4566 | http://localhost:4566 (via LocalStack) |
 | Adminer | 8090 | http://localhost:8090 |
-| Mongo Express | 8091 | http://localhost:8091 |
 
-## 📨 Filas SQS Criadas
+## 📨 Mensageria — Kafka (Saga) e SQS (Auxiliares)
 
-### Por Microserviço
+> **Nota:** Os 3 serviços da Saga (OS, Billing, Execution) foram migrados de SQS para **Apache Kafka**.
+> Os demais 6 serviços auxiliares continuam utilizando **filas SQS** via LocalStack.
 
-| Serviço | Filas |
+### Tópicos Kafka (Serviços da Saga)
+
+| Serviço | Tópicos Kafka |
+|---------|---------------|
+| OS Service | `os-events`, `os-events-dlq` |
+| Billing Service | `billing-events`, `billing-events-dlq`, `payment-events`, `payment-events-dlq` |
+| Execution Service | `execution-events`, `execution-events-dlq`, `diagnostico-events`, `diagnostico-events-dlq` |
+| Saga (Orquestração) | `saga-orchestrator`, `saga-compensation`, `saga-reply` |
+
+### Filas SQS (Serviços Auxiliares — via LocalStack)
+
+| Serviço | Filas SQS |
 |---------|-------|
-| OS Service | `os-events-queue`, `os-events-dlq` |
-| Billing Service | `billing-events-queue`, `billing-events-dlq`, `payment-events-queue`, `payment-events-dlq` |
-| Execution Service | `execution-events-queue`, `execution-events-dlq`, `diagnostico-events-queue`, `diagnostico-events-dlq` |
 | Customer Service | `customer-events-queue`, `customer-events-dlq`, `veiculo-events-queue`, `veiculo-events-dlq` |
 | People Service | `pessoas-events-queue`, `pessoas-events-dlq` |
 | HR Service | `hr-events-queue`, `hr-events-dlq`, `funcionario-events-queue`, `funcionario-events-dlq` |
@@ -74,7 +84,6 @@ aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1
 | Maintenance Service | `maintenance-events-queue`, `maintenance-events-dlq` |
 | Notification Service | `notification-events-queue`, `notification-events-dlq`, `email-queue`, `sms-queue` |
 | Operations Service | `operations-queue`, `operations-dlq` |
-| Saga (Orquestração) | `saga-orchestrator-queue`, `saga-compensation-queue`, `saga-reply-queue` |
 
 ## 🗄️ Bancos de Dados
 
@@ -93,11 +102,12 @@ aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1
 | `operations_db` | oficina-operations-service |
 | `tech_fiap_db` | tech_fiap3 |
 
-### MongoDB
+### DynamoDB Local
 
-| Banco | Microserviço |
-|-------|--------------|
-| `billing_db` | oficina-billing-service |
+| Tabela | Microserviço |
+|--------|--------------|
+| `billing-service-orcamentos` | oficina-billing-service |
+| `billing-service-pagamentos` | oficina-billing-service |
 
 ## ⚙️ Configuração dos Microserviços
 
@@ -136,26 +146,31 @@ mvn spring-boot:run
 
 ## 🔧 Comandos Úteis
 
-### Listar filas SQS
+### Listar filas SQS (serviços auxiliares)
+
+> Os comandos SQS abaixo se aplicam aos **6 serviços auxiliares** (Customer, People, HR, Catalog, Maintenance, Notification, Operations) que ainda utilizam SQS via LocalStack.
+> Para os serviços da Saga (OS, Billing, Execution), utilize os comandos do Kafka CLI.
 
 ```bash
 aws --endpoint-url=http://localhost:4566 sqs list-queues --region us-east-1
 ```
 
-### Enviar mensagem para uma fila
+### Enviar mensagem para uma fila SQS (serviços auxiliares)
 
 ```bash
+# Exemplo: enviar mensagem para o Customer Service (SQS)
 aws --endpoint-url=http://localhost:4566 sqs send-message \
-    --queue-url http://localhost:4566/000000000000/os-events-queue \
-    --message-body '{"tipo":"NOVA_OS","osId":"123"}' \
+    --queue-url http://localhost:4566/000000000000/customer-events-queue \
+    --message-body '{"tipo":"NOVO_CLIENTE","clienteId":"123"}' \
     --region us-east-1
 ```
 
-### Receber mensagens de uma fila
+### Receber mensagens de uma fila SQS (serviços auxiliares)
 
 ```bash
+# Exemplo: receber mensagens do Customer Service (SQS)
 aws --endpoint-url=http://localhost:4566 sqs receive-message \
-    --queue-url http://localhost:4566/000000000000/os-events-queue \
+    --queue-url http://localhost:4566/000000000000/customer-events-queue \
     --region us-east-1
 ```
 
@@ -197,10 +212,14 @@ Verifique se o container está rodando:
 docker-compose -f docker-compose.localstack.yml ps postgres
 ```
 
-### Erro: "Could not connect to MongoDB"
+### Erro: "Could not connect to DynamoDB"
 
 ```bash
-docker-compose -f docker-compose.localstack.yml logs mongodb
+# Verificar se LocalStack está rodando
+docker-compose -f docker-compose.localstack.yml logs localstack
+
+# Testar conexão
+aws --endpoint-url=http://localhost:4566 dynamodb list-tables --region us-east-1
 ```
 
 ### LocalStack não está criando as filas
@@ -214,12 +233,12 @@ docker-compose -f docker-compose.localstack.yml logs localstack
 
 ```
 localstack/
-├── init-aws.sh              # Script para criar filas SQS
+├── init-aws.sh              # Script para criar filas SQS (serviços auxiliares) + setup Kafka (Saga)
 ├── init-postgres.sh         # Script para criar bancos de dados
 ├── application-local.properties.template  # Template de configuração
 └── README.md                # Esta documentação
 
-docker-compose.localstack.yml  # Arquivo principal do Docker Compose
+docker-compose.localstack.yml  # Arquivo principal do Docker Compose (inclui Kafka/Zookeeper para Saga)
 ```
 
 ## 🔗 Links Úteis

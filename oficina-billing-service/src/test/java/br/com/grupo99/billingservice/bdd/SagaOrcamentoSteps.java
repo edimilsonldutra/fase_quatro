@@ -4,7 +4,8 @@ import br.com.grupo99.billingservice.domain.model.Orcamento;
 import br.com.grupo99.billingservice.domain.model.StatusOrcamento;
 import br.com.grupo99.billingservice.domain.repository.OrcamentoRepository;
 import br.com.grupo99.billingservice.infrastructure.messaging.BillingEventPublisher;
-import br.com.grupo99.billingservice.infrastructure.persistence.repository.MongoOrcamentoRepository;
+import br.com.grupo99.billingservice.infrastructure.persistence.repository.DynamoDbOrcamentoRepository;
+import br.com.grupo99.billingservice.testconfig.DynamoDbTestContainer;
 import io.cucumber.datatable.DataTable;
 import io.cucumber.java.Before;
 import io.cucumber.java.pt.Dado;
@@ -17,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -28,13 +30,14 @@ import static org.junit.jupiter.api.Assertions.*;
 @CucumberContextConfiguration
 @SpringBootTest
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = DynamoDbTestContainer.Initializer.class)
 public class SagaOrcamentoSteps {
 
     @Autowired
     private OrcamentoRepository orcamentoRepository;
 
     @Autowired
-    private MongoOrcamentoRepository mongoOrcamentoRepository;
+    private DynamoDbOrcamentoRepository dynamoDbOrcamentoRepository;
 
     @SpyBean
     private BillingEventPublisher eventPublisher;
@@ -49,13 +52,7 @@ public class SagaOrcamentoSteps {
     @Before
     public void setUp() {
         // Limpa completamente o banco antes de cada cenário
-        mongoOrcamentoRepository.deleteAll();
-        try {
-            Thread.sleep(100);
-        } catch (Exception e) {
-            System.err.println("Erro ao limpar banco: " + e.getMessage());
-        }
-        // Limpa todas as variáveis de instância para evitar reutilização
+        // Limpa variáveis de instância para evitar reutilização
         orcamento = null;
         osId = null;
         exception = null;

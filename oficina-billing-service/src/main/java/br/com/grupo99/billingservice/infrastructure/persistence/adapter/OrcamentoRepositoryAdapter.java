@@ -3,7 +3,7 @@ package br.com.grupo99.billingservice.infrastructure.persistence.adapter;
 import br.com.grupo99.billingservice.domain.model.Orcamento;
 import br.com.grupo99.billingservice.domain.model.StatusOrcamento;
 import br.com.grupo99.billingservice.domain.repository.OrcamentoRepository;
-import br.com.grupo99.billingservice.infrastructure.persistence.repository.MongoOrcamentoRepository;
+import br.com.grupo99.billingservice.infrastructure.persistence.repository.DynamoDbOrcamentoRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -17,28 +17,28 @@ import java.util.stream.Collectors;
  * 
  * ✅ CLEAN ARCHITECTURE - ADAPTER PATTERN:
  * - Implementa a interface de domínio (OrcamentoRepository)
- * - Adapta MongoDB (MongoOrcamentoRepository) para domínio
- * - Domain não conhece MongoDB
- * - Fácil trocar de BD (postgres, mysql, etc)
+ * - Adapta DynamoDB (DynamoDbOrcamentoRepository) para domínio
+ * - Domain não conhece detalhes de persistência
+ * - Migrado de MongoDB para DynamoDB
  */
 @Slf4j
 @Component
 public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
 
-    private final MongoOrcamentoRepository mongoRepository;
+    private final DynamoDbOrcamentoRepository dynamoDbRepository;
     private final OrcamentoEntityMapper mapper;
 
     public OrcamentoRepositoryAdapter(
-            MongoOrcamentoRepository mongoRepository,
+            DynamoDbOrcamentoRepository dynamoDbRepository,
             OrcamentoEntityMapper mapper) {
-        this.mongoRepository = mongoRepository;
+        this.dynamoDbRepository = dynamoDbRepository;
         this.mapper = mapper;
     }
 
     /**
      * Salva um Orcamento
      * 
-     * Fluxo: Domain Model → Entity → MongoDB
+     * Fluxo: Domain Model → Entity → DynamoDB
      */
     @Override
     public Orcamento save(Orcamento orcamento) {
@@ -47,8 +47,8 @@ public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
         // 1. Domain → Entity
         var entity = mapper.toEntity(orcamento);
 
-        // 2. Entity → MongoDB
-        var saved = mongoRepository.save(entity);
+        // 2. Entity → DynamoDB
+        var saved = dynamoDbRepository.save(entity);
 
         // 3. Entity → Domain (retornar domínio)
         return mapper.toDomain(saved);
@@ -61,8 +61,8 @@ public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
     public Optional<Orcamento> findById(UUID id) {
         log.debug("Buscando orcamento por id: {}", id);
 
-        // 1. Buscar no MongoDB
-        var entity = mongoRepository.findById(id.toString());
+        // 1. Buscar no DynamoDB
+        var entity = dynamoDbRepository.findById(id.toString());
 
         // 2. Entity → Domain
         return entity.map(mapper::toDomain);
@@ -75,8 +75,8 @@ public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
     public Optional<Orcamento> findByOsId(UUID osId) {
         log.debug("Buscando orcamento por osId: {}", osId);
 
-        // 1. Buscar no MongoDB
-        var entity = mongoRepository.findByOsId(osId.toString());
+        // 1. Buscar no DynamoDB
+        var entity = dynamoDbRepository.findByOsId(osId.toString());
 
         // 2. Entity → Domain
         return entity.map(mapper::toDomain);
@@ -89,8 +89,8 @@ public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
     public List<Orcamento> findByStatus(StatusOrcamento status) {
         log.debug("Buscando orcamentos por status: {}", status);
 
-        // 1. Buscar no MongoDB
-        var entities = mongoRepository.findByStatus(status.name());
+        // 1. Buscar no DynamoDB
+        var entities = dynamoDbRepository.findByStatus(status.name());
 
         // 2. Entity → Domain (stream)
         return entities.stream()
@@ -104,7 +104,7 @@ public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
     @Override
     public boolean existsByOsId(UUID osId) {
         log.debug("Verificando existência de orcamento para osId: {}", osId);
-        return mongoRepository.existsByOsId(osId.toString());
+        return dynamoDbRepository.existsByOsId(osId.toString());
     }
 
     /**
@@ -113,6 +113,6 @@ public class OrcamentoRepositoryAdapter implements OrcamentoRepository {
     @Override
     public void deleteById(UUID id) {
         log.debug("Deletando orcamento: {}", id);
-        mongoRepository.deleteById(id.toString());
+        dynamoDbRepository.deleteById(id.toString());
     }
 }

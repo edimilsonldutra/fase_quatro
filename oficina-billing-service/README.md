@@ -2,8 +2,8 @@
 
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.13-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk)](https://openjdk.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-7.0-47A248?logo=mongodb)](https://www.mongodb.com/)
-[![AWS SQS](https://img.shields.io/badge/AWS-SQS-FF9900?logo=amazon-aws)](https://aws.amazon.com/sqs/)
+[![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?logo=amazondynamodb&logoColor=white)](https://aws.amazon.com/dynamodb/)
+[![Apache Kafka](https://img.shields.io/badge/Kafka-3.7.2-231F20?logo=apachekafka)](https://kafka.apache.org/)
 
 Microsserviço responsável por gerenciar orçamentos e pagamentos em uma oficina mecânica.
 
@@ -14,7 +14,7 @@ Microsserviço responsável por gerenciar orçamentos e pagamentos em uma oficin
 - [Arquitetura](#arquitetura)
 - [Tecnologias](#tecnologias)
 - [APIs REST](#apis-rest)
-- [Eventos (SQS)](#eventos-sqs)
+- [Eventos (Kafka)](#eventos-kafka)
 - [Banco de Dados](#banco-de-dados)
 - [Configuração](#configuração)
 - [Deploy](#deploy)
@@ -51,8 +51,8 @@ Este serviço representa o **bounded context "Faturamento e Pagamentos"** no mod
 ```
 ┌─────────────────────────────────────────┐
 │        Infrastructure Layer             │
-│  (REST Controllers, SQS Listeners,      │
-│   MongoDB Repositories, Configs)        │
+│  (REST Controllers, Kafka Listeners,      │
+│   DynamoDB Repositories, Configs)        │
 └──────────────┬──────────────────────────┘
                │
 ┌──────────────▼──────────────────────────┐
@@ -80,9 +80,9 @@ Este serviço representa o **bounded context "Faturamento e Pagamentos"** no mod
 |-----------|------------|--------|---------------|
 | **Framework** | Spring Boot | 3.3.13 | Framework moderno e produtivo |
 | **Linguagem** | Java | 21 | LTS com virtual threads |
-| **Banco de Dados** | MongoDB | 7.0 | Flexibilidade para documentos variáveis |
-| **Mensageria** | AWS SQS | - | Comunicação assíncrona |
-| **ODM** | Spring Data MongoDB | - | Simplifica acesso ao MongoDB |
+| **Banco de Dados** | DynamoDB | - | Flexibilidade para documentos variáveis, Free Tier AWS |
+| **Mensageria** | Apache Kafka | 3.7.2 | Comunicação assíncrona event-driven |
+| **SDK** | AWS SDK DynamoDB Enhanced | 2.x | Simplifica acesso ao DynamoDB |
 | **Observabilidade** | New Relic APM | - | Monitoramento e tracing |
 | **Testes** | JUnit 5, Cucumber | - | Testes unitários e BDD |
 | **Build** | Maven | 3.9+ | Gerenciamento de dependências |
@@ -227,7 +227,7 @@ Authorization: Bearer <JWT>
 
 ---
 
-## 📨 Eventos (SQS)
+## 📨 Eventos (Kafka)
 
 ### Eventos Publicados
 
@@ -235,7 +235,7 @@ Authorization: Bearer <JWT>
 
 Publicado quando um orçamento é criado.
 
-**Fila:** `billing-events-queue`
+**Tópico:** `billing-events`
 
 **Payload:**
 ```json
@@ -259,7 +259,7 @@ Publicado quando um orçamento é criado.
 
 Publicado quando cliente aprova orçamento.
 
-**Fila:** `billing-events-queue`
+**Tópico:** `billing-events`
 
 **Payload:**
 ```json
@@ -339,23 +339,23 @@ Publicado quando pagamento é confirmado.
 
 Cria orçamento automaticamente quando OS é aberta.
 
-**Fila consumida:** `os-events-queue`
+**Tópico consumido:** `os-events`
 
 ---
 
 ## 💾 Banco de Dados
 
-### MongoDB (AWS DocumentDB)
+### DynamoDB (Amazon)
 
 **Justificativa:**
 - ✅ **Flexibilidade:** Orçamentos com estruturas variáveis (número de itens, tipos diferentes)
-- ✅ **Documentos JSON:** Armazenamento natural de orçamentos complexos
-- ✅ **Versionamento:** Fácil manter histórico de versões do orçamento
-- ✅ **Escalabilidade horizontal:** Sharding nativo
+- ✅ **Free Tier:** Custo próximo a zero para desenvolvimento e baixo volume
+- ✅ **Gerenciado:** Sem necessidade de administrar cluster ou instâncias
+- ✅ **Escalabilidade automática:** On-demand capacity
 
-### Collections
+### Tabelas
 
-#### Collection: `orcamentos`
+#### Tabela: `billing-service-orcamentos`
 
 ```json
 {
@@ -399,7 +399,7 @@ db.orcamentos.createIndex({ "dataGeracao": -1 })
 
 ---
 
-#### Collection: `pagamentos`
+#### Tabela: `billing-service-pagamentos`
 
 ```json
 {
@@ -430,16 +430,15 @@ db.pagamentos.createIndex({ "status": 1 })
 ### Variáveis de Ambiente
 
 ```yaml
-# MongoDB
-MONGODB_URI: mongodb://billing-mongodb.docdb.amazonaws.com:27017
-MONGODB_DATABASE: billing_db
-MONGODB_USERNAME: <from-secrets-manager>
-MONGODB_PASSWORD: <from-secrets-manager>
-
-# AWS SQS
+# DynamoDB
+AWS_DYNAMODB_ENDPOINT: https://dynamodb.us-east-1.amazonaws.com
+AWS_DYNAMODB_TABLE_PREFIX: billing-service
 AWS_REGION: us-east-1
-OS_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/os-events-queue
-BILLING_EVENTS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/xxx/billing-events-queue
+
+# Kafka
+KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+OS_EVENTS_TOPIC: os-events
+BILLING_EVENTS_TOPIC: billing-events
 
 # Spring Profiles
 SPRING_PROFILES_ACTIVE: prod

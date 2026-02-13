@@ -2,11 +2,7 @@ spring:
   application:
     name: billing-service
 
-  data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017}
-      database: ${MONGODB_DATABASE:billing_db}
-      auto-index-creation: true
+  # DynamoDB - não utiliza spring.data.* (configurado via DynamoDbConfig.java)
 
   # Kafka Configuration
   kafka:
@@ -59,7 +55,6 @@ logging:
   level:
     root: ${LOG_LEVEL:INFO}
     br.com.grupo99: DEBUG
-    org.springframework.data.mongodb: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
 
@@ -125,8 +120,12 @@ management:
     tags:
       application: billing-service
 
-# AWS SQS Queues
+# AWS DynamoDB + SQS
 aws:
+  region: ${AWS_REGION:us-east-1}
+  dynamodb:
+    endpoint: ${AWS_DYNAMODB_ENDPOINT:}
+    table-prefix: ${DYNAMODB_TABLE_PREFIX:}
   sqs:
     queues:
       os-events: ${OS_EVENTS_QUEUE_URL:os-events-queue}

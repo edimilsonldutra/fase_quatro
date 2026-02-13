@@ -378,7 +378,7 @@ ENTRYPOINT ["java", "-javaagent:/app/newrelic/newrelic.jar", "-jar", "app.jar"]
 - **Mockito** - Mocks
 - **JaCoCo** - Cobertura
 - **Cucumber** - BDD
-- **TestContainers** - Kafka/PostgreSQL/MongoDB
+- **TestContainers** - Kafka/PostgreSQL/DynamoDB Local
 
 ### Comandos
 
@@ -466,7 +466,7 @@ springdoc:
 
 **1. tech_challenge_db_infra**
 - PostgreSQL RDS (9 instâncias)
-- MongoDB DocumentDB (1 cluster)
+- DynamoDB (Billing + Catalog)
 - Security Groups
 - SSM Parameter Store (secrets)
 
@@ -528,12 +528,12 @@ Topics:
 - Multi-AZ: Sim (prod)
 - Backup: 7 dias
 
-**MongoDB DocumentDB:**
-- 1 cluster (billing-service)
-- Engine: MongoDB 5.0 compatible
-- Instance: db.t3.medium
-- Nodes: 3 (1 primary + 2 replicas)
-- Backup: 7 dias
+**Amazon DynamoDB:**
+- Tabela: billing-service-table
+- Tipo: On-Demand (Free Tier)
+- Chave primária: id (partition key)
+- Sem gerenciamento de cluster
+- Backup: Point-in-time recovery
 
 ---
 

@@ -103,12 +103,12 @@ Cliente          API Gateway     Lambda Auth      RDS (pessoas)      OS Service
 ## 2. Fluxo Completo de Ordem de Serviço (Event-Driven)
 
 ### Descrição
-O fluxo representa o ciclo de vida completo de uma Ordem de Serviço através dos 3 microserviços, utilizando comunicação assíncrona via SQS.
+O fluxo representa o ciclo de vida completo de uma Ordem de Serviço através dos 3 microserviços, utilizando comunicação assíncrona via Apache Kafka.
 
 ### Diagrama de Sequência
 
 ```
-Cliente    OS Service    SQS (os-events)    Billing Service    SQS (billing)    Execution Service
+Cliente    OS Service    Kafka (os-events)    Billing Service    Kafka (billing)    Execution Service
   │             │                │                   │                │                  │
   │─ POST ─────>│                │                   │                │                  │
   │ /ordens     │                │                   │                │                  │
@@ -160,7 +160,7 @@ Cliente    OS Service    SQS (os-events)    Billing Service    SQS (billing)    
   │             │                │                   │                │  Publish Event   │
   │             │                │                   │                │ "DIAG_CONCLUIDO" │
   │             │                │                   │                ├─────────────────>│
-  │             │                │                   │  Poll          │  execution-queue │
+  │             │                │                   │  Poll          │  execution-topic │
   │             │                │                   │<───────────────┤                  │
   │             │                │                   │  Event: DIAG   │                  │
   │             │                │                   │<───────────────┤                  │
@@ -184,7 +184,7 @@ Cliente    OS Service    SQS (os-events)    Billing Service    SQS (billing)    
   │ 200 OK      │                │                   │  Publish Event │                  │
   │             │                │                   │ "ORC_APROVADO" │                  │
   │             │                │                   ├───────────────>│                  │
-  │             │                │  Poll             │  billing-queue │                  │
+  │             │                │  Poll             │  billing-topic │                  │
   │             │<───────────────┤                   │                │                  │
   │             │  Event:        │                   │                │                  │
   │             │  ORC_APROVADO  │                   │                │                  │
@@ -213,9 +213,9 @@ Cliente    OS Service    SQS (os-events)    Billing Service    SQS (billing)    
 | `ENTREGUE` | OS Service | Veículo entregue ao cliente | (final) |
 | `CANCELADA` | OS Service | OS cancelada | (final) |
 
-### Eventos Publicados no SQS
+### Eventos Publicados no Kafka
 
-#### os-events-queue
+#### os-events-topic
 
 | Evento | Produtor | Payload | Consumidores |
 |--------|----------|---------|--------------|
@@ -223,7 +223,7 @@ Cliente    OS Service    SQS (os-events)    Billing Service    SQS (billing)    
 | `STATUS_CHANGED` | OS Service | `{osId, oldStatus, newStatus, timestamp}` | Billing, Execution |
 | `OS_CANCELADA` | OS Service | `{osId, motivo, timestamp}` | Billing, Execution |
 
-#### billing-events-queue
+#### billing-events-topic
 
 | Evento | Produtor | Payload | Consumidores |
 |--------|----------|---------|--------------|
@@ -231,7 +231,7 @@ Cliente    OS Service    SQS (os-events)    Billing Service    SQS (billing)    
 | `ORCAMENTO_APROVADO` | Billing Service | `{orcamentoId, osId, timestamp}` | OS, Execution |
 | `PAGAMENTO_CONFIRMADO` | Billing Service | `{pagamentoId, osId, valor, timestamp}` | OS |
 
-#### execution-events-queue
+#### execution-events-topic
 
 | Evento | Produtor | Payload | Consumidores |
 |--------|----------|---------|--------------|
@@ -249,7 +249,7 @@ Após o diagnóstico ser concluído no Execution Service, o Billing Service cons
 ### Diagrama Simplificado
 
 ```
-Execution Service    SQS (execution-events)    Billing Service    MongoDB
+Execution Service    Kafka (execution-events)    Billing Service    DynamoDB
        │                       │                       │              │
        │ Publish Event         │                       │              │
        │ "DIAG_CONCLUIDO"      │                       │              │
@@ -302,7 +302,7 @@ Cliente aprova orçamento e realiza pagamento. Billing Service processa e notifi
 ### Diagrama Simplificado
 
 ```
-Cliente    Billing Service    MongoDB    SQS (billing-events)    OS Service
+Cliente    Billing Service    DynamoDB    Kafka (billing-events)    OS Service
    │              │               │                 │                  │
    │─ PUT ──────>│               │                 │                  │
    │/pagamentos   │               │                 │                  │
@@ -340,7 +340,7 @@ Cliente Request → API Gateway [Trace-ID: abc123]
                        ↓
                   OS Service [Trace-ID: abc123, Span-ID: 001]
                        ↓
-              SQS Message [Trace-ID: abc123]
+              Kafka Message [Trace-ID: abc123]
                        ↓
               Billing Service [Trace-ID: abc123, Span-ID: 002]
                        ↓
@@ -351,7 +351,7 @@ Cliente Request → API Gateway [Trace-ID: abc123]
 
 - **Latência Total**: Tempo do request inicial até resposta final
 - **Span Duration**: Tempo em cada microserviço
-- **External Calls**: Chamadas para banco de dados, SQS
+- **External Calls**: Chamadas para banco de dados, Kafka
 - **Errors**: Exceções e stack traces
 - **Attributes**: Headers, query params, response codes
 

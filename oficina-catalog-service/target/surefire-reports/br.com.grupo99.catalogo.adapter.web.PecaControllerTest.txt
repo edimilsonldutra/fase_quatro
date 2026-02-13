@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: br.com.grupo99.catalogo.adapter.web.PecaControllerTest
 -------------------------------------------------------------------------------
-Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.89 s -- in br.com.grupo99.catalogo.adapter.web.PecaControllerTest
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.626 s -- in br.com.grupo99.catalogo.adapter.web.PecaControllerTest

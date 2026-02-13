@@ -90,7 +90,7 @@ mvn clean package -DskipTests
 
 ✅ **Domain Layer**
 - Sem dependências Spring Data
-- Sem anotações MongoDB
+- Sem anotações DynamoDB
 - UUIDs para IDs
 - Métodos de domínio puros
 
@@ -100,7 +100,7 @@ mvn clean package -DskipTests
 - Application Services para orquestração
 
 ✅ **Infrastructure Layer**
-- Entities com @Document
+- Entities com @DynamoDbBean
 - Adapter Pattern implementado
 - Controllers como HTTP adapters
 - Event Listener coordena use cases
@@ -144,7 +144,7 @@ Application Layer:
   ✅ Transações gerenciadas
 
 Infrastructure Layer:
-  ✅ Entities com MongoDB
+  ✅ Entities com DynamoDB
   ✅ Adapter Pattern para repositories
   ✅ Controllers como HTTP adapters
   ✅ Event Listener coordena use cases

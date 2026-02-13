@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrcamentoEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">billing-service</a> &gt; <a href="index.source.html" class="el_package">br.com.grupo99.billingservice.infrastructure.persistence.entity</a> &gt; <span class="el_source">OrcamentoEntity.java</span></div><h1>OrcamentoEntity.java</h1><pre class="source lang-java linenums">package br.com.grupo99.billingservice.infrastructure.persistence.entity;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Entity DynamoDB para Orcamento
+ * 
+ * ✅ CLEAN ARCHITECTURE: Entity fica na infrastructure layer
+ * Domain models não conhecem detalhes de persistência
+ * 
+ * Migrado de MongoDB (@Document) para DynamoDB (@DynamoDbBean)
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@DynamoDbBean
+public class OrcamentoEntity {
+
+    private String id;
+
+    private String osId;
+
+    @Builder.Default
+    private String status = &quot;PENDENTE&quot;;
+
+    @Builder.Default
+    private List&lt;ItemOrcamentoEntity&gt; itens = new ArrayList&lt;&gt;();
+
+    private BigDecimal valorTotal;
+
+    private Instant dataGeracao;
+
+    private Instant dataAprovacao;
+
+    private Instant dataRejeicao;
+
+    private String observacao;
+
+    private String motivoRejeicao;
+
+    @Builder.Default
+    private List&lt;HistoricoStatusEntity&gt; historico = new ArrayList&lt;&gt;();
+
+    private Instant createdAt;
+
+    private Instant updatedAt;
+
+    @DynamoDbPartitionKey
+    public String getId() {
+<span class="fc" id="L61">        return this.id;</span>
+    }
+
+    /**
+     * Item do Orcamento (nested DynamoDbBean)
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @DynamoDbBean
+    public static class ItemOrcamentoEntity {
+        private String tipo;
+        private String descricao;
+        private BigDecimal valorUnitario;
+        private BigDecimal valorTotal;
+        private Integer quantidade;
+    }
+
+    /**
+     * Histórico de status (nested DynamoDbBean)
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @DynamoDbBean
+    public static class HistoricoStatusEntity {
+        private String statusAnterior;
+        private String novoStatus;
+        private String usuario;
+        private String observacao;
+        private Instant data;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

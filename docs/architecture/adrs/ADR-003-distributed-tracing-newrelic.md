@@ -4,7 +4,7 @@
 **Aceito** - Janeiro 2026
 
 ## Contexto
-Em uma arquitetura de microserviços com comunicação assíncrona via SQS, precisamos rastrear requisições que atravessam múltiplos serviços. Desafios:
+Em uma arquitetura de microserviços com comunicação assíncrona via Kafka, precisamos rastrear requisições que atravessam múltiplos serviços. Desafios:
 - Correlacionar logs de diferentes serviços
 - Identificar gargalos de performance entre serviços
 - Debugar falhas em fluxos distribuídos
@@ -15,7 +15,7 @@ Implementar **Distributed Tracing com New Relic APM** em todos os microserviços
 - Trace IDs propagados entre serviços
 - Span IDs para cada operação
 - Automatic instrumentation de Spring Boot, JDBC, HTTP
-- Custom instrumentation para SQS messages
+- Custom instrumentation para Kafka messages
 
 ### Implementação
 
@@ -41,7 +41,7 @@ common: &default_settings
 - **Root Cause Analysis**: Identificar rapidamente onde falhas ocorrem
 - **Performance Insights**: Detectar operações lentas (database queries, external calls)
 - **SLA Monitoring**: Medir latência P50, P95, P99 por endpoint
-- **Context Propagation**: Trace IDs automaticamente propagados via HTTP headers e SQS attributes
+- **Context Propagation**: Trace IDs automaticamente propagados via HTTP headers e Kafka headers
 
 ### Negativas ❌
 - **Overhead**: ~2-5% de latência adicional
@@ -69,11 +69,11 @@ Request inicial
      │
      ├─ OS Service (Span-ID: 002)
      │  ├─ Database Query (Span-ID: 003)
-     │  └─ SQS Publish (Span-ID: 004, Trace-ID: abc-123-def-456)
+     │  └─ Kafka Publish (Span-ID: 004, Trace-ID: abc-123-def-456)
      │
      ├─ Billing Service (Span-ID: 005, Trace-ID: abc-123-def-456)
-     │  ├─ MongoDB Query (Span-ID: 006)
-     │  └─ SQS Publish (Span-ID: 007, Trace-ID: abc-123-def-456)
+     │  ├─ DynamoDB Query (Span-ID: 006)
+     │  └─ Kafka Publish (Span-ID: 007, Trace-ID: abc-123-def-456)
      │
      └─ Execution Service (Span-ID: 008, Trace-ID: abc-123-def-456)
         └─ Database Query (Span-ID: 009)
@@ -88,15 +88,15 @@ Request inicial
 │ ├─ OS Service (850ms)                                           │
 │ │  ├─ Controller.criarOrdem (50ms)                              │
 │ │  ├─ PostgreSQL INSERT ordens_servico (150ms) ⚠️               │
-│ │  ├─ SQS Publish os-events-queue (100ms)                       │
+│ │  ├─ Kafka Publish os-events (100ms)                            │
 │ │  └─ Service.validarCliente (550ms) ⚠️ SLOW                    │
 │ │                                                                │
 │ ├─ Billing Service (250ms) [Async]                              │
-│ │  ├─ SQS Receive message (50ms)                                │
-│ │  └─ MongoDB INSERT orcamento (200ms)                          │
+│ │  ├─ Kafka Consume message (50ms)                               │
+│ │  └─ DynamoDB PutItem orcamento (200ms)                          │
 │ │                                                                │
 │ └─ Execution Service (150ms) [Async]                            │
-│    ├─ SQS Receive message (50ms)                                │
+│    ├─ Kafka Consume message (50ms)                               │
 │    └─ PostgreSQL INSERT execucao (100ms)                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -156,48 +156,43 @@ public class ExternalApiService {
 
 ## Instrumentação Customizada
 
-### SQS Message Tracing
+### Kafka Message Tracing
 
-Para propagar Trace ID via SQS:
+Para propagar Trace ID via Kafka:
 
 ```java
 @Service
-public class SQSEventPublisher {
+public class KafkaEventPublisher {
     
     @Autowired
-    private SqsTemplate sqsTemplate;
+    private KafkaTemplate<String, String> kafkaTemplate;
     
     @Trace(dispatcher = true)  // Custom instrumentation
     public void publishEvent(OSCriadaEvent event) {
-        // Adiciona Trace ID aos message attributes
-        Map<String, MessageAttributeValue> attributes = new HashMap<>();
-        
+        // Adiciona Trace ID aos Kafka headers
         String traceId = NewRelic.getAgent()
             .getTransaction()
             .getTraceId();
         
-        attributes.put("newrelic-trace-id", MessageAttributeValue.builder()
-            .dataType("String")
-            .stringValue(traceId)
-            .build());
+        ProducerRecord<String, String> record = new ProducerRecord<>(
+            "os-events", event.getOsId().toString(),
+            objectMapper.writeValueAsString(event));
         
-        sqsTemplate.send(SendMessageRequest.builder()
-            .queueUrl("os-events-queue")
-            .messageBody(objectMapper.writeValueAsString(event))
-            .messageAttributes(attributes)
-            .build());
+        record.headers().add("newrelic-trace-id",
+            traceId.getBytes(StandardCharsets.UTF_8));
+        
+        kafkaTemplate.send(record);
     }
 }
 
 @Component
-public class SQSEventConsumer {
+public class KafkaEventConsumer {
     
-    @SqsListener("os-events-queue")
-    public void handleEvent(Message message) {
-        // Extrai Trace ID dos message attributes
-        String traceId = message.messageAttributes()
-            .get("newrelic-trace-id")
-            .stringValue();
+    @KafkaListener(topics = "os-events", groupId = "os-service-group")
+    public void handleEvent(ConsumerRecord<String, String> record) {
+        // Extrai Trace ID dos Kafka headers
+        Header traceHeader = record.headers().lastHeader("newrelic-trace-id");
+        String traceId = new String(traceHeader.value(), StandardCharsets.UTF_8);
         
         // Continua o trace
         NewRelic.getAgent()
@@ -208,7 +203,7 @@ public class SQSEventConsumer {
             );
         
         // Processa mensagem
-        processEvent(message.body());
+        processEvent(record.value());
     }
 }
 ```
@@ -244,10 +239,10 @@ public class OrdemServicoService {
    - Traces com erros
    - Breakdown por serviço
 
-3. **SQS Monitoring**
+3. **Kafka Monitoring**
    - Mensagens publicadas/consumidas
    - Latência de processamento
-   - Dead Letter Queue size
+   - Dead Letter Topic size
 
 ### Alertas Configurados
 
@@ -256,7 +251,7 @@ public class OrdemServicoService {
 | High Latency | P95 > 3 segundos por 5 minutos | Critical |
 | Error Rate Spike | Taxa de erro > 5% | Critical |
 | Service Down | Apdex score < 0.5 | Critical |
-| SQS DLQ Growing | DLQ messages > 10 | Warning |
+| Kafka DLT Growing | DLT messages > 10 | Warning |
 | Database Slow Queries | Query time > 2 segundos | Warning |
 
 ## Exemplos de Queries NRQL
@@ -324,7 +319,7 @@ kubectl exec -n os-service <pod-name> -- env | grep NEW_RELIC
 
 ### Traces incompletos
 
-- Verificar se Trace ID está sendo propagado via SQS attributes
+- Verificar se Trace ID está sendo propagado via Kafka headers
 - Confirmar que `distributed_tracing.enabled=true` em todos os serviços
 - Verificar logs para erros de instrumentação
 

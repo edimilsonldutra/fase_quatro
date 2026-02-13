@@ -383,7 +383,7 @@ Fevereiro 2026
 ### Curto Prazo (Q1 2026)
 1. Criar RFC-003: Kafka Migration
 2. Criar ADR-004: Circuit Breaker
-3. Criar ADR-005: MongoDB for Billing
+3. Criar ADR-005: DynamoDB for Billing
 
 ### Médio Prazo (Q2 2026)
 1. Implementar Kafka Streams

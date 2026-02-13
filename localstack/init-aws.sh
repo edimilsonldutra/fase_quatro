@@ -160,6 +160,49 @@ echo "  ✓ saga-compensation-queue"
 echo "  ✓ saga-reply-queue"
 
 # =============================================================================
+# Tabelas DynamoDB (Billing + Catalog Services)
+# Substituiu MongoDB/DocumentDB - DynamoDB é Free Tier na AWS
+# =============================================================================
+echo ""
+echo ">>> Criando tabelas DynamoDB..."
+echo ""
+
+echo "[BILLING-SERVICE] Criando tabelas DynamoDB..."
+awslocal dynamodb create-table \
+    --table-name orcamentos \
+    --attribute-definitions AttributeName=id,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+echo "  ✓ orcamentos"
+
+awslocal dynamodb create-table \
+    --table-name pagamentos \
+    --attribute-definitions AttributeName=id,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+echo "  ✓ pagamentos"
+
+echo ""
+echo "[CATALOG-SERVICE] Criando tabelas DynamoDB..."
+awslocal dynamodb create-table \
+    --table-name pecas \
+    --attribute-definitions AttributeName=id,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+echo "  ✓ pecas"
+
+awslocal dynamodb create-table \
+    --table-name servicos \
+    --attribute-definitions AttributeName=id,AttributeType=S \
+    --key-schema AttributeName=id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+echo "  ✓ servicos"
+
+echo ""
+echo "Tabelas DynamoDB criadas:"
+awslocal dynamodb list-tables --output table
+
+# =============================================================================
 # Listar todas as filas criadas
 # =============================================================================
 echo ""

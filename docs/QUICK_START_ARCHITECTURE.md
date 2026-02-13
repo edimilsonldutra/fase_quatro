@@ -14,8 +14,8 @@ Sistema de **gestão de oficina mecânica** com 10 microserviços independentes 
 ### Stack Tecnológica
 - **Backend:** Java 21 + Spring Boot 3.3.13
 - **Mensageria:** Apache Kafka 3.7.2
-- **Bancos:** PostgreSQL 16.3 (9x) + MongoDB (1x)
-- **Cloud:** AWS (EKS, RDS, DocumentDB, Lambda)
+- **Bancos:** PostgreSQL 16.3 (9x) + DynamoDB (1x)
+- **Cloud:** AWS (EKS, RDS, DynamoDB, Lambda)
 - **IaC:** Terraform
 - **Observabilidade:** New Relic
 
@@ -33,7 +33,7 @@ Sistema de **gestão de oficina mecânica** com 10 microserviços independentes 
      ┌──────────────┼──────────────┐
      │              │              │
 ┌────▼─────┐  ┌────▼────┐   ┌────▼─────┐
-│PostgreSQL│  │ MongoDB │   │  Kafka   │
+│PostgreSQL│  │DynamoDB │   │  Kafka   │
 │  (9x)    │  │  (1x)   │   │ Topics   │
 └──────────┘  └─────────┘   └──────────┘
 ```
@@ -48,7 +48,7 @@ Sistema de **gestão de oficina mecânica** com 10 microserviços independentes 
 |---------|-----------|---------|-------|
 | [OS Service](../tech_fiap3/src/main/java/br/com/grupo99/os/) | Gerencia ordens de serviço | Publica: `OSCriadaEvent`, `StatusMudadoEvent` | PostgreSQL |
 | [Execution Service](../tech_fiap3/src/main/java/br/com/grupo99/execution/) | Diagnósticos e execução | Publica: `DiagnosticoConcluidoEvent` <br/> Consome: `OSCriadaEvent` | PostgreSQL |
-| [Billing Service](../tech_fiap3/src/main/java/br/com/grupo99/billing/) | Orçamentos e pagamentos | Publica: `OrcamentoProntoEvent` <br/> Consome: `OSCriadaEvent`, `DiagnosticoConcluidoEvent` | **MongoDB** |
+| [Billing Service](../tech_fiap3/src/main/java/br/com/grupo99/billing/) | Orçamentos e pagamentos | Publica: `OrcamentoProntoEvent` <br/> Consome: `OSCriadaEvent`, `DiagnosticoConcluidoEvent` | **DynamoDB** |
 
 **Características:**
 - ✅ Circuit Breaker (Resilience4j)
@@ -184,11 +184,11 @@ public void publishEventFallback(OSCriadaEvent event, Throwable t) {
 | Serviço | Banco | Razão |
 |---------|-------|-------|
 | **9 serviços** | PostgreSQL 16.3 | Dados estruturados, relacionamentos complexos, ACID |
-| **Billing Service** | MongoDB (DocumentDB) | Schema flexível para orçamentos variáveis |
+| **Billing Service** | DynamoDB | Schema flexível para orçamentos variáveis, Free Tier AWS |
 
 **Exemplo:**
 ```json
-// Billing Service - Orçamento com schema flexível
+// Billing Service - Orçamento com schema flexível (DynamoDB)
 {
   "osId": "123",
   "itens": [
@@ -261,13 +261,13 @@ Amazon EKS (Kubernetes 1.29)
     └── Ingress Controller
     │
     ├─► Amazon RDS (9x PostgreSQL 16.3)
-    ├─► Amazon DocumentDB (1x MongoDB)
+    ├─► Amazon DynamoDB (Billing + Catalog)
     ├─► Amazon MSK (Kafka cluster)
     └─► AWS Lambda (autenticação)
 ```
 
 ### Repositórios Terraform
-1. **tech_challenge_db_infra** → Provisiona RDS + DocumentDB
+1. **tech_challenge_db_infra** → Provisiona RDS + DynamoDB
 2. **tech_challenge_k8s_infra** → Provisiona EKS + Kafka + New Relic
 
 ---
@@ -340,7 +340,7 @@ resilience4j_circuitbreaker_state{name="kafkaPublisher"}
 - Docker + Docker Compose
 - kubectl (para deploy no cluster)
 
-### Subir ambiente local (Kafka + PostgreSQL + MongoDB)
+### Subir ambiente local (Kafka + PostgreSQL + DynamoDB Local)
 ```bash
 cd tech_fiap3
 docker-compose up -d
@@ -435,8 +435,8 @@ Padrão para transações distribuídas que **NÃO usa transações ACID globais
 **Q: Por que Kafka ao invés de SQS?**  
 A: Open-source, sem vendor lock-in, replay de mensagens, melhor throughput, retenção configurável.
 
-**Q: Por que MongoDB só no Billing?**  
-A: Orçamentos têm schema flexível (itens variáveis, descontos dinâmicos). PostgreSQL seria rígido demais.
+**Q: Por que DynamoDB só no Billing?**  
+A: Orçamentos têm schema flexível (itens variáveis, descontos dinâmicos). DynamoDB oferece Free Tier e escala automática sem gerenciar cluster.
 
 **Q: Os 7 serviços CRUD não são "microserviços de verdade"?**  
 A: São microserviços, mas **simples**. Não precisam de Saga/Kafka porque fazem apenas CRUD síncrono.
